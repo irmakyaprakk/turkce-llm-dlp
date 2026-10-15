@@ -1,0 +1,118 @@
+# Altın test seti — 1. parti (aday). Kurallar: training/ner/ANNOTATION_RULES.md
+# Biçim: kategori<TAB>cümle. Etiketler: PER, ORG, LOC, ADRES. Satır içi \n = yeni satır.
+# Tüm kişi adları, adresler ve numaralar uydurmadır. Gözden geçirirken etiketi düzelt, emin olmadığın satırın başına "# ?" koy.
+
+# --- e-posta ---
+eposta	Merhaba [[PER|Selin]] Hanım, ekteki teklifi [[ORG|Kuzey Lojistik]] adına inceleyip dönüş yapabilir misiniz?
+eposta	Sayın [[PER|Burak Çetin]],\nSiparişiniz [[ADRES|Yenişehir Mah. Lale Sk. No:14 D:3 Pendik/İstanbul]] adresine yarın teslim edilecektir.
+eposta	[[PER|Cem]] bey merhaba, faturayı [[ORG|Akdeniz Gıda A.Ş.]] unvanıyla kesmemiz gerekiyor, vergi dairesi [[ORG|Antalya Kurumlar Vergi Dairesi]].
+eposta	Toplantı notlarını [[PER|Derya Koç]] ve [[PER|Onur Aydın]] ile paylaştım, İK ekibine de iletebilir misin?
+eposta	Kargo [[ADRES|Fevzi Çakmak Cad. No:88/2 Karşıyaka İzmir]] adresine gitmiş ama alıcı yokmuş, iade sürecini başlatalım.
+eposta	İyi günler, [[ORG|Marmara Üniversitesi]] staj başvurum için referans mektubunu Prof. Dr. [[PER|Hakan Ersoy]]'dan alacağım.
+eposta	[[PER|Melis]], müşterinin yeni adresi [[ADRES|Bahçelievler Mah. 7. Cad. No:21 K:4 Çankaya/Ankara]], sistemi güncelleyebilir misin?
+eposta	Bu hafta [[LOC|Bursa]] fabrikasında denetim var, [[PER|Tolga Yücel]] ekip lideri olarak katılacak.
+eposta	Ekteki sözleşmede [[ORG|Yıldız Yazılım Ltd. Şti.]] ile [[ORG|Ege Enerji]] arasındaki ödeme takvimi yer alıyor.
+eposta	Merhaba, [[PER|Aylin Demirtaş]] olarak [[ORG|Türk Telekom]] faturamla ilgili itirazımı iletmek istiyorum.
+
+# --- Slack / ekip içi ---
+slack	@[[PER|kerem]] dünkü deploy'u kim onayladı? [[PER|ece]] izinliydi galiba
+slack	[[PER|Mert]]'in laptopu [[LOC|Kadıköy]] ofisinde kalmış, yarın biri getirebilir mi
+slack	müşteri [[PER|Hülya Şahin]] tekrar aradı, adresini [[ADRES|Atatürk Mah. Gül Sk. No:5 Ataşehir]] olarak düzeltmemiz lazım
+slack	[[ORG|Getir]] entegrasyonu için [[PER|Barış]] ile pairing yapacağım, öğleden sonra müsait değilim
+slack	arkadaşlar [[ORG|Trendyol]] kampanyası yüzünden sipariş patladı, [[LOC|Gebze]] depo yetişmiyor
+slack	[[PER|Zeynep Kara]] yeni PM olarak katıldı, hoş geldin diyelim 🎉
+slack	bugün [[LOC|Ankara]]'dan [[PER|Emre]] Bey geliyor, toplantı odası 3 rezerve mi
+slack	[[PER|ahmet]] abi prod db şifresini dm atar mısın, [[PER|serkan]] ulaşamıyor
+slack	[[ORG|AWS]] faturası bu ay yüksek gelmiş, [[PER|Deniz Güler]] maliyet raporunu hazırlıyor
+slack	staj yapan [[PER|Elif Nur]] için [[ORG|GitHub]] hesabı açılsın lütfen
+
+# --- destek talebi / müşteri ---
+destek	Siparişim 3 gündür [[LOC|Eskişehir]] aktarma merkezinde bekliyor, takip no 7381920. Adresim [[ADRES|Vişnelik Mah. Çamlıca Sk. No:9 Odunpazarı]].
+destek	Merhaba ben [[PER|Gökhan Arslan]], aboneliğimi iptal etmek istiyorum ama müşteri hizmetleri telefonu açmıyor.
+destek	Ürün hasarlı geldi, [[ORG|Aras Kargo]] şubesi teslim almıyor. Lütfen [[ADRES|Cumhuriyet Cad. No:45/7 Merkez Kırşehir]] adresinden aldırın.
+destek	Annem [[PER|Fatma Yılmaz]] adına açılan hesaba erişemiyorum, şifre sıfırlama maili gelmiyor.
+destek	kartımdan iki kere çekim yapılmış, [[ORG|Ziraat Bankası]]'na da bildirdim, iade ne zaman olur
+destek	teslimat adresi [[ADRES|kazım karabekir mah 1234 sk no 6 daire 2 yenimahalle ankara]] olacak, yanlış yazmışım
+destek	Fatura bilgisi: [[PER|Nihan Ateş]], [[ADRES|Mimar Sinan Mah. Okul Sk. No:3 Üsküdar/İstanbul]], vergi no 1234567890.
+destek	[[LOC|Trabzon]]'a gönderim yapıyor musunuz? [[LOC|Akçaabat]] ilçesindeyim.
+destek	Mağazanızın [[LOC|İstinye]] şubesinde çalışan [[PER|Kaan]] isimli personel çok yardımcı oldu, teşekkürler.
+destek	iade kodunu [[PER|Sevda Tunç]] adına oluşturdunuz ama ben [[PER|Sevda Tunç Aksoy]] olarak kayıtlıyım
+
+# --- resmi yazışma ---
+resmi	[[ORG|Kadıköy Belediyesi]] Fen İşleri Müdürlüğü'ne,\n[[ADRES|Caferağa Mah. Moda Cad. No:112 Kadıköy/İstanbul]] adresindeki yapı ruhsatı hakkında bilgi talep ederim.
+resmi	İlgi: [[ORG|Sosyal Güvenlik Kurumu]] [[LOC|Konya]] İl Müdürlüğü'nün 12.09.2026 tarihli yazısı.
+resmi	Şirketimiz çalışanı [[PER|Murat Öztürk]]'ün [[ORG|Gazi Üniversitesi Hastanesi]]'ndeki tedavi süreci boyunca izinli sayılması rica olunur.
+resmi	Tebligat adresi: [[ADRES|Kocatepe Mah. Mithatpaşa Cad. No:31/5 06420 Çankaya/Ankara]]
+resmi	[[ORG|Ankara 4. Asliye Ticaret Mahkemesi]] 2026/412 E. sayılı dosyada davacı [[PER|Levent Kılıç]] vekili olarak beyanda bulunuyoruz.
+resmi	[[ORG|Hazine ve Maliye Bakanlığı]] ile yapılan yazışmalar Av. [[PER|Canan Erdem]] tarafından yürütülmektedir.
+
+# --- imza / iletişim bloğu ---
+imza	Saygılarımla,\n[[PER|Ozan Kurt]]\nSatın Alma Uzmanı | [[ORG|Delta Makine San. Tic. A.Ş.]]\n[[ADRES|İkitelli OSB Mah. Marmara Sanayi Sitesi M Blok No:12 Başakşehir/İstanbul]]
+imza	İyi çalışmalar,\n[[PER|Büşra Yalçın]]\n[[ORG|Arı Danışmanlık]] – [[LOC|İzmir]]
+imza	--\n[[PER|Can Polat]]\nYazılım Geliştirici\n[[ORG|Piri Teknoloji]]
+imza	Kolay gelsin,\n[[PER|Sinan Aksoy]] | Bölge Müdürü\n[[ADRES|Alsancak Mah. 1453 Sk. No:7 K:2 Konak/İzmir]]
+
+# --- kısa mesaj / küçük harf / Türkçe karaktersiz ---
+kisa_mesaj	[[PER|ayseye]] soyle aksam [[LOC|besiktasta]] bulusalim
+kisa_mesaj	kargo [[ADRES|ataturk mah inonu cad no 23 daire 4 tepebasi eskisehir]] adresine gelsin
+kisa_mesaj	[[PER|hakan]] hocanin maili neydi ya
+kisa_mesaj	yarin [[ORG|garantiye]] gidip hesap acicam
+kisa_mesaj	[[PER|ELİF ÖZDEMİR]] ADINA KAYITLI SİPARİŞ HALA GELMEDİ
+kisa_mesaj	adresim [[ADRES|SAKARYA MAH. 412. SK. NO:8 MAMAK/ANKARA]] LÜTFEN DÜZELTİN
+kisa_mesaj	[[PER|emre]] ile [[LOC|izmire]] gidiyoz haftaya
+kisa_mesaj	[[PER|gulsen]] teyze [[LOC|bodrumda]] yazlikta kaliyo artik
+kisa_mesaj	paketi [[ADRES|karsiyaka mah 5011 sk no 12 d 3 ortahisar trabzon]] a birak
+kisa_mesaj	[[PER|cagri]] [[ORG|vodafonea]] gecmis faturası yarıya inmiş
+
+# --- liste / tablo benzeri ---
+liste	1) [[PER|Okan Bayram]] – Muhasebe\n2) [[PER|Pınar Tekin]] – Satış\n3) [[PER|Volkan Er]] – BT
+liste	Ad Soyad: [[PER|Tuğba Şen]]\nAdres: [[ADRES|Güzelyalı Mah. 82018 Sk. No:4 Çukurova/Adana]]\nTel: 0532 000 00 00
+liste	- [[ORG|Koç Holding]]\n- [[ORG|Sabancı Holding]]\n- [[ORG|Eczacıbaşı]]
+liste	Şube | Sorumlu\n[[LOC|Kartal]] | [[PER|Recep Dinç]]\n[[LOC|Maltepe]] | [[PER|Gizem Uçar]]
+liste	Teslimat listesi: [[ADRES|Hürriyet Mah. Barış Sk. No:2 Bağcılar]]; [[ADRES|Fatih Mah. Erguvan Sk. No:17/1 Sancaktepe]]
+
+# --- kod / teknik içerik ---
+kod	# TODO([[PER|ugur]]): [[ORG|Iyzico]] webhook imzasını doğrula
+kod	const ADMIN = "[[PER|Serdar Kaplan]]"; // geçici, prod'a gitmeden sil
+kod	git commit -m "fix: [[PER|Esra]]'nın bildirdiği adres doğrulama hatası"
+kod	test_user = {"name": "[[PER|Mehmet Ali Tunç]]", "city": "[[LOC|Samsun]]"}
+kod	Bu SQL sorgusu [[ORG|Yapı Kredi]] entegrasyonundaki müşteri tablosundan çekiliyor, [[PER|Cansu]] yazdı.
+
+# --- toplantı / takvim ---
+toplanti	Pazartesi 10:00 – [[ORG|Anadolu Sigorta]] ile yıllık değerlendirme, katılımcılar: [[PER|Hande Bilgin]], [[PER|Taner Özkan]].
+toplanti	Lansman [[LOC|Ankara]]'da [[ORG|Ankara Ticaret Odası]] salonunda yapılacak.
+toplanti	Müşteri ziyareti: [[ADRES|Esentepe Mah. Büyükdere Cad. No:185 Kat:12 Şişli/İstanbul]], saat 14:30.
+toplanti	Online toplantı linkini [[PER|Selim]] paylaşacak, [[PER|Nazlı]] not alacak.
+
+# --- karışık: kural katmanı verisi de içeren (NER etiketi yalnızca kişi/kurum/yer/adres) ---
+karisik	[[PER|Ali Rıza Kaya]], TC 10000000146, IBAN TR33 0006 1005 1978 6457 8413 26, adres [[ADRES|Yeni Mah. Çınar Sk. No:11 Seyhan/Adana]].
+karisik	Maaş ödemesi için [[PER|Duygu Er]] hesabı: TR12 0001 0012 3456 7890 1234 56 ([[ORG|Vakıfbank]])
+karisik	[[PER|Kemal Usta]]'nın kimlik numarası 12345678950, doğum yeri [[LOC|Malatya]].
+karisik	Kartımın son kullanma tarihi geçti, [[ORG|Akbank]] yenisini [[ADRES|Bağlarbaşı Mah. Nar Sk. No:6 Osmangazi/Bursa]] adresine yollayacak.
+
+# --- zor negatifler: kişi/adres GİBİ görünen ama olmayan ya da yalnızca LOC olanlar ---
+zor_negatif	Bugün hava çok güzel, deniz kenarında yürüyüş yaptık.
+zor_negatif	Umut etmekten vazgeçmeyin, barış her zaman mümkün.
+zor_negatif	Gül kurusu rengi bu sezon çok moda.
+zor_negatif	[[LOC|Bağdat Caddesi]]'nde trafik yine kilitlendi.
+zor_negatif	[[LOC|İstiklal Caddesi]] hafta sonu yayalara açık.
+zor_negatif	Yeni ofis [[LOC|Levent]] tarafında olacakmış ama adres henüz belli değil.
+zor_negatif	No:5 yazan kapıyı bulamadık, sokak isimleri de yok.
+zor_negatif	Kat 3'teki toplantı odası tadilatta.
+zor_negatif	Sipariş numarası 2026-10-458, kargo takip kodu AB123456789TR.
+zor_negatif	Bu ürün 34 cm genişliğinde, 06 kodlu parça uyumlu değil.
+zor_negatif	Mahalle arasında yeni bir kafe açılmış, sokak lezzetleri çok iyi.
+zor_negatif	Cadde boyunca ağaç dikilecekmiş.
+zor_negatif	Pazar günü pazar kurulmayacak.
+zor_negatif	Doğan güneşle birlikte yola çıktık.
+zor_negatif	Savaş ve barış romanını bitirdim.
+zor_negatif	Bu yıl [[LOC|Türkiye]] genelinde enflasyon beklentisi yükseldi.
+zor_negatif	Merkez ofis taşındı, yeni adresi intranet sayfasında.
+zor_negatif	Teslimat adresini sistemden kontrol edin lütfen.
+zor_negatif	Sayın yetkili, başvurum hakkında bilgi alabilir miyim?
+zor_negatif	Yarın sabah erkenden yola çıkacağım, akşam dönerim.
+zor_negatif	Sevgi ve saygılarımla.
+zor_negatif	Ekip lideri onaylarsa süreç başlayacak.
+zor_negatif	Altın fiyatları bugün yine rekor kırdı.
+zor_negatif	Kiraz mevsimi geldi, tanesi çok tatlı.
+zor_negatif	Yaz tatilinde [[LOC|Ege]] kıyılarını gezdik.

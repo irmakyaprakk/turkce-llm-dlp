@@ -335,6 +335,10 @@ def main() -> None:
         "synthetic-address-v1": "generated locally",
         "openstreetmap-tr-odbl": "ODbL-1.0",
         "openstreetmap-tr-generated-context-v1": "ODbL-1.0 address records; generated sentence context",
+        "turkish-wikiNER-orthographic-aug": "CC-BY-SA-4.0 (derived)",
+        "openstreetmap-tr-restyled": "ODbL-1.0 address records; synthetic formatting",
+        "generated-context-v2": "generated locally; ODbL-1.0 address records",
+        "generated-negative-v2": "generated locally",
     }
     used_sources = sorted({row.get("source", "unknown") for rows in raw_rows.values() for row in rows})
     manifest = {
