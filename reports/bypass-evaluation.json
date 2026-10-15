@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "seed": 42,
+  "samples_per_class": 50,
+  "techniques": {
+    "separators": {
+      "normalization_off": {
+        "true_positive": 50,
+        "false_negative": 0,
+        "capture_rate": 1.0,
+        "false_positive": 0,
+        "true_negative": 50,
+        "false_positive_rate": 0.0
+      },
+      "normalization_on": {
+        "true_positive": 50,
+        "false_negative": 0,
+        "capture_rate": 1.0,
+        "false_positive": 0,
+        "true_negative": 50,
+        "false_positive_rate": 0.0
+      }
+    },
+    "zero_width": {
+      "normalization_off": {
+        "true_positive": 0,
+        "false_negative": 50,
+        "capture_rate": 0.0,
+        "false_positive": 0,
+        "true_negative": 50,
+        "false_positive_rate": 0.0
+      },
+      "normalization_on": {
+        "true_positive": 50,
+        "false_negative": 0,
+        "capture_rate": 1.0,
+        "false_positive": 0,
+        "true_negative": 50,
+        "false_positive_rate": 0.0
+      }
+    },
+    "fullwidth": {
+      "normalization_off": {
+        "true_positive": 0,
+        "false_negative": 50,
+        "capture_rate": 0.0,
+        "false_positive": 0,
+        "true_negative": 50,
+        "false_positive_rate": 0.0
+      },
+      "normalization_on": {
+        "true_positive": 50,
+        "false_negative": 0,
+        "capture_rate": 1.0,
+        "false_positive": 0,
+        "true_negative": 50,
+        "false_positive_rate": 0.0
+      }
+    }
+  }
+}

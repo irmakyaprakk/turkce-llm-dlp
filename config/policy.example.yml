@@ -1,0 +1,12 @@
+# Tüm tespit edilen veriler varsayılan olarak maskelenir.
+default_action: mask
+rules:
+  TCKN: block
+  IBAN: mask
+  CARD: block
+  EMAIL: mask
+  SECRET: block
+  PERSON: mask
+  ORG: mask
+  ADDRESS: mask
+  LOCATION: mask

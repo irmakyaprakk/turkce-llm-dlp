@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "turkce-llm-dlp"
+version = "0.1.0"
+description = "Türkçe kurumsal LLM DLP çekirdeği"
+requires-python = ">=3.10"
+dependencies = ["fastapi>=0.110,<1", "uvicorn[standard]>=0.27,<1", "pydantic>=2,<3", "PyYAML>=6,<7", "httpx>=0.27,<1"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.6", "pre-commit>=3"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+filterwarnings = [
+  # Starlette TestClient içindeki üçüncü taraf uyarısı; proje kodundan gelmiyor.
+  "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["data", "models", "*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+# E501: uzun regex/mesaj satırları bilinçli; E731/E701: kısa yardımcılar.
+ignore = ["E501", "E731", "E701"]
+
+[tool.ruff.lint.per-file-ignores]
+# Eğitim betikleri doğrudan çalıştırılabilmek için sys.path'i import'lardan önce ayarlar.
+# B905: eski Python sürümleriyle uyumlu, davranışı değiştirmeyen zip kullanımı.
+"training/**/*.py" = ["E402", "B905"]
+"scripts/*.py" = ["E402"]
+"tests/*.py" = ["E402", "B905"]

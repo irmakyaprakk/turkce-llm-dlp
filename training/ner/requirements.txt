@@ -1,0 +1,5 @@
+# Install PyTorch for the selected Colab/MPS/CPU runtime first. This file
+# contains the model-training libraries; it does not install or download data.
+transformers>=4.50,<5
+datasets>=3,<5
+accelerate>=1,<2

@@ -1,0 +1,15 @@
+# kategori<TAB>cümle  (aşağıdakiler yalnızca biçim örneğidir, gerçek sete kopyalama)
+kisa_mesaj	yarın [[PER|Elif Demir]]'e uğrayacağım, [[ADRES|Moda Mah. Bahariye Cad. No:12 D:4 Kadıköy]]'de oturuyor
+kisa_mesaj	kargoyu [[ADRES|cumhuriyet mah. 45. sk. no:7 k:2]]'ye gönderin lütfen
+resmi	Sayın [[PER|Mehmet Kaya]], fatura [[ADRES|Atatürk Cad. No:15/3 06100 Çankaya/Ankara]] adresine gönderilmiştir.
+resmi	Toplantı [[LOC|Ankara]]'da, [[ORG|Örnek Teknoloji A.Ş.]] merkezinde olacak
+zor_negatif	[[LOC|Bursa]]'ya gidiyorum, cuma dönerim
+zor_negatif	[[LOC|Bağdat Caddesi]]'nde yürüyüş yaptık
+zor_negatif	Hafta sonu [[LOC|Kadıköy]]'deki kafede buluşalım
+ekli_bicim	[[ORG|Migros]] [[LOC|Kadıköy]] şubesi pazartesi kapalı
+coklu	Depo [[ADRES|Organize Sanayi Böl. 3. Cad. No:8 Gebze]], ofis ise [[ADRES|Levent Mah. Büyükdere Cad. No:201 Şişli]]'de
+imza	Saygılarımla,\n[[PER|Ayşe Yıldız]]
+liste	1) [[PER|Can Öz]] - [[ADRES|Gül Sk. No:4/2 Çankaya]]
+kisa_mesaj	adresi atar mısın [[PER|Burak]]'a
+zor_negatif	[[ORG|Garanti BBVA]] ile görüştüm, ödeme yarın
+resmi	[[PER|Zeynep Arslan]] [[ORG|Anadolu Üniversitesi]]'nde çalışıyor

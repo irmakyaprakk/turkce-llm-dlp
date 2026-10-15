@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "scope": "local core only; no HTTP, network provider, NER model, or real data",
+  "runtime": {
+    "python": "3.13.5",
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "warmup_iterations": 20,
+  "workloads": {
+    "500": {
+      "text_characters": 500,
+      "iterations": 100,
+      "ner_enabled": false,
+      "measurements": {
+        "detection": {
+          "p50_ms": 0.122,
+          "p95_ms": 0.1357,
+          "mean_ms": 0.1218
+        },
+        "detection_and_masking": {
+          "p50_ms": 0.1254,
+          "p95_ms": 0.1455,
+          "mean_ms": 0.1271
+        }
+      }
+    },
+    "5000": {
+      "text_characters": 5000,
+      "iterations": 100,
+      "ner_enabled": false,
+      "measurements": {
+        "detection": {
+          "p50_ms": 1.1129,
+          "p95_ms": 1.1719,
+          "mean_ms": 1.1231
+        },
+        "detection_and_masking": {
+          "p50_ms": 1.1327,
+          "p95_ms": 1.192,
+          "mean_ms": 1.1451
+        }
+      }
+    },
+    "20000": {
+      "text_characters": 20000,
+      "iterations": 100,
+      "ner_enabled": false,
+      "measurements": {
+        "detection": {
+          "p50_ms": 4.5168,
+          "p95_ms": 4.6375,
+          "mean_ms": 4.5159
+        },
+        "detection_and_masking": {
+          "p50_ms": 4.5327,
+          "p95_ms": 4.693,
+          "mean_ms": 4.5418
+        }
+      }
+    }
+  }
+}

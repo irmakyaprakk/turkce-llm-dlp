@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Türkçe LLM DLP</title>
+  <style>
+    body { width: 280px; margin: 0; padding: 16px; color: #172033; font: 14px system-ui, sans-serif; }
+    h1 { margin: 0 0 12px; font-size: 17px; }
+    label { display: flex; align-items: center; gap: 10px; }
+    p { margin: 12px 0 0; color: #49566d; line-height: 1.45; }
+    #status { margin-top: 12px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Türkçe LLM DLP</h1>
+  <label><input id="enabled" type="checkbox"> Gönderim öncesi kontrolü etkinleştir</label>
+  <p>Kontrol, bilgisayarındaki 127.0.0.1:8000 API'sine yapılır. Servis ulaşılamazsa mesaj gönderilmez.</p>
+  <div id="status" role="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

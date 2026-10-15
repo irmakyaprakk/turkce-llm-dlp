@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "outside_label": "O",
+  "entity_types": [
+    "PERSON",
+    "ORG",
+    "LOCATION"
+  ],
+  "bio_labels": [
+    "O",
+    "B-PERSON",
+    "I-PERSON",
+    "B-ORG",
+    "I-ORG",
+    "B-LOCATION",
+    "I-LOCATION"
+  ],
+  "source_label_mappings": {
+    "PER": "PERSON",
+    "PERSON": "PERSON",
+    "ORG": "ORG",
+    "GPE": "LOCATION",
+    "LOC": "LOCATION"
+  }
+}

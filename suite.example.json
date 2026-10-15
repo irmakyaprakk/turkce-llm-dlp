@@ -1,0 +1,7 @@
+{"sets": [
+  {"name": "wiki_test", "path": "data/ner/processed/real-address-v2/test.jsonl"},
+  {"name": "gercekci_test", "path": "data/ner/processed/realistic-v1/test.jsonl",
+   "variants": ["lower", "upper", "ascii", "lower_ascii"]},
+  {"name": "zor_negatif", "path": "data/ner/processed/zor-negatif-v1/test.jsonl",
+   "variants": ["lower", "lower_ascii"]}
+]}
