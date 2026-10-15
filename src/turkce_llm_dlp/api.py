@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from .gateway import DemoProvider, Gateway, OpenAICompatibleProvider, UpstreamUnavailable
+from .gazetteer import LocationGazetteer
 from .masking import process_demo
 from .ner import DetectionPipeline, HuggingFaceNERRecognizer
 from .policy import Policy
@@ -88,9 +89,13 @@ def _configured_policy() -> Policy:
 
 def _rule_recognizers() -> list:
     # Kural tabanlı kurum/adres tanıyıcı modelden bağımsız çalışır; TURKCE_DLP_RULE_NER=0 ile kapatılabilir.
-    if os.environ.get("TURKCE_DLP_RULE_NER", "1").strip() == "0":
-        return []
-    return [RuleEntityRecognizer()]
+    # Yer adı sözlüğü (il/ilçe/mahalle/ülke) model öncelikli boşluk doldurur; TURKCE_DLP_GAZETTEER=0 ile kapatılır.
+    recognizers: list = []
+    if os.environ.get("TURKCE_DLP_RULE_NER", "1").strip() != "0":
+        recognizers.append(RuleEntityRecognizer())
+    if os.environ.get("TURKCE_DLP_GAZETTEER", "1").strip() != "0":
+        recognizers.append(LocationGazetteer())
+    return recognizers
 
 
 def _configured_detector() -> DetectionPipeline:

@@ -1,0 +1,175 @@
+# Ülke adları (Türkçe yaygın biçimleriyle) ve Türkiye'nin coğrafi bölge / yöre adları.
+# Kaynak: BM üyesi ülkelerin Türkçe adları (Dışişleri Bakanlığı kullanımı) ve 7 coğrafi bölge; elle derlendi.
+# Geliştirme seti ve mühürlü testten bağımsız olarak hazırlanmıştır. Satır başına bir ad; '#' yorum.
+# Belirsiz adlar (Mısır, Mali, Yemen, Ege...) build_gazetteer.py tarafından istatistikle kısıtlanır.
+# --- ülkeler ---
+Türkiye
+Afganistan
+Almanya
+Amerika
+ABD
+Andorra
+Angola
+Arjantin
+Arnavutluk
+Avustralya
+Avusturya
+Azerbaycan
+Bahreyn
+Bangladeş
+Belçika
+Belarus
+Beyaz Rusya
+Bolivya
+Bosna Hersek
+Botsvana
+Brezilya
+Bulgaristan
+Burkina Faso
+Cezayir
+Çad
+Çekya
+Çin
+Danimarka
+Ekvador
+Endonezya
+Eritre
+Ermenistan
+Estonya
+Etiyopya
+Fas
+Fildişi Sahili
+Filipinler
+Filistin
+Finlandiya
+Fransa
+Gabon
+Gambiya
+Gana
+Gine
+Guatemala
+Güney Afrika
+Güney Kore
+Gürcistan
+Haiti
+Hırvatistan
+Hindistan
+Hollanda
+Honduras
+Irak
+İngiltere
+İran
+İrlanda
+İskoçya
+İspanya
+İsrail
+İsveç
+İsviçre
+İtalya
+İzlanda
+Jamaika
+Japonya
+Kamboçya
+Kamerun
+Kanada
+Karadağ
+Katar
+Kazakistan
+Kenya
+Kıbrıs
+Kırgızistan
+Kolombiya
+Kongo
+Kosova
+Kosta Rika
+Kuveyt
+Kuzey Kore
+Kuzey Makedonya
+Küba
+Laos
+Letonya
+Liberya
+Libya
+Lihtenştayn
+Litvanya
+Lübnan
+Lüksemburg
+Macaristan
+Madagaskar
+Makedonya
+Malezya
+Mali
+Malta
+Meksika
+Mısır
+Moğolistan
+Moldova
+Monako
+Moritanya
+Mozambik
+Myanmar
+Namibya
+Nepal
+Nijer
+Nijerya
+Nikaragua
+Norveç
+Özbekistan
+Pakistan
+Panama
+Paraguay
+Peru
+Polonya
+Portekiz
+Romanya
+Ruanda
+Rusya
+Senegal
+Sırbistan
+Singapur
+Slovakya
+Slovenya
+Somali
+Sri Lanka
+Sudan
+Suriye
+Suudi Arabistan
+Şili
+Tacikistan
+Tanzanya
+Tayland
+Tayvan
+Togo
+Tunus
+Türkmenistan
+Uganda
+Ukrayna
+Umman
+Uruguay
+Ürdün
+Venezuela
+Vietnam
+Yemen
+Yeni Zelanda
+Yunanistan
+Zambiya
+Zimbabve
+Avrupa
+Asya
+Afrika
+Balkanlar
+Kafkasya
+Ortadoğu
+# --- Türkiye bölge / yöre ---
+Anadolu
+Trakya
+Marmara
+Ege
+Akdeniz
+Karadeniz
+İç Anadolu
+Doğu Anadolu
+Güneydoğu Anadolu
+Kapadokya
+Çukurova
+Toroslar

@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
+from ._gazetteer_data import province_and_district_keys
 from .ner import EntitySpan
 
 TOKEN_RE = re.compile(r"\w+(?:['’]\w+)*|[^\w\s]", re.UNICODE)
@@ -56,7 +57,8 @@ ILCELER = (
     "Kuşadası İzmit Gebze Darıca Gölcük Serdivan Adapazarı Çorlu Kocasinan Melikgazi Talas Şahinbey "
     "Şehitkamil Bağlar Kayapınar Yenişehir Akdeniz Toroslar Mezitli Merkez"
 ).split()
-PLACES = frozenset(_key(name) for name in (*ILLER, *ILCELER))
+# Elle yazılmış liste + PTT listesindeki 81 il ve 973 ilçenin tamamı (data/gazetteer/)
+PLACES = frozenset(_key(name) for name in (*ILLER, *ILCELER)) | province_and_district_keys()
 
 ORG_HEADS = frozenset(
     _key(word)

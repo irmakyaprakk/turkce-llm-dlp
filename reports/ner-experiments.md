@@ -141,4 +141,52 @@ Aynı veri (augmented-v3), aynı eğitim ayarları; yalnız temel model `VRLLab/
 
 Hata listesi büyük harfle başlayan sıradan sözcükleri varlık sanan bir model gösteriyor ("Yarın", "Maaş", "Hemşire", "IBAN"). Olası nedenler: model küçük harfe çeviren tweet ön işlemesiyle ön-eğitilmiş, biz büyük/küçük harf korunmuş metin verdik (büyük harf NER'in en güçlü ipuçlarından); 128 token sınırı; hiperparametreler BERTurk için seçildi. Sonuç: bu kurulumda BERTurk açıkça üstün; TurkishBERTweet hakkında genel bir yargı değildir. Ek ayar eğitimleri yapılmadı.
 
-**Final yapılandırma kararı:** BERTurk (`dbmdz/bert-base-turkish-cased`) + augmented-v3 + kural katmanı + son işlem. 3 seed (42, 43, 44) ile eğitilip mühürlü testte bir kez ölçülecek (`colab_train_eval.ipynb`, hücre 8).
+**Final yapılandırma kararı:** BERTurk (`dbmdz/bert-base-turkish-cased`) + augmented-v3 + kural katmanı + son işlem. 3 seed (42, 43, 44) ile eğitilip mühürlü testte bir kez ölçüldü (`colab_final.ipynb`); sonuç aşağıda.
+
+## FİNAL SONUÇ — mühürlü test (v1: BERTurk + augmented-v3 + kural katmanı + son işlem)
+
+3 seed (42, 43, 44), üretim boru hattıyla birebir (DetectionPipeline), ortalama ± std. Mühürlü test bir kez çalıştırıldı;
+sonucuna göre hiçbir ayar yapılmadı.
+
+| | Geliştirme (159 cümle) | Mühürlü — tümü (71) | Mühürlü — proje içi yazar (56) | Mühürlü — bağımsız yazar (15) |
+|---|---|---|---|---|
+| Genel F1 | 0,971 ± 0,004 | **0,857 ± 0,008** | 0,908 ± 0,019 | 0,622 ± 0,040 |
+| Precision | 0,971 ± 0,004 | 0,859 ± 0,003 | 0,912 ± 0,013 | 0,618 ± 0,060 |
+| **Token kapsama (DLP)** | 0,993 ± 0,001 | **0,945 ± 0,010** | 0,959 ± 0,009 | 0,833 ± 0,018 |
+| Kişi F1 / kapsama | 0,982 / 0,996 | 0,929 / 0,989 | 0,966 / 0,987 | 0,799 / 1,000 |
+| Kurum F1 / kapsama | 0,926 / 0,969 | 0,797 / 0,945 | 0,849 / 0,953 | 0,356 / 0,833 |
+| Yer F1 / kapsama | 0,983 / 1,000 | 0,833 / 0,788 | 0,977 / 1,000 | 0,451 / 0,417 |
+| Adres F1 / kapsama | 1,000 / 1,000 | 0,811 / 0,950 | 0,794 / 0,947 | 1,000 / 1,000 |
+
+Varlık sayıları: proje içi yazar 80 (30 kişi, 25 kurum, 14 yer, 11 adres); bağımsız yazar 17 (7 kişi, 3 kurum, 6 yer, 1 adres).
+
+**Yorum.**
+
+1. **Geliştirme–mühürlü farkı (0,971 → 0,857):** Geliştirme setinde hata analizi yaparak kural ve son işlem ayarladık; o set artık iyimser bir tahmin veriyor. Mühürlü test bu iyimserliği ölçtü. Raporlanacak genelleme performansı mühürlü sonuçtur.
+2. **DLP açısından asıl metrik token kapsamadır: 0,945.** Kişisel veri token'larının ~%94,5'i maskeleniyor. Kişi adlarında kapsama 0,989; F1'e göre çok daha yüksek olması, hataların çoğunun **sınır** hatası olduğunu gösterir (varlık maskeleniyor ama span altın etiketle birebir örtüşmüyor). Adres de böyle: F1 0,811, kapsama 0,950.
+3. **Bağımsız yazarın gayriresmî dili en zor durum (0,622):** Küçük harf, yazım hatası, bitişik ek ("ceyhana", "bucaktaki", "appleda", "tadımın"). Sızıntı en çok yer adlarında (kapsama 0,417) ve küçük harfli kurum/işletme adlarında. Bu, eğitim verisindeki yapay küçük harf varyantlarının gerçek gayriresmî yazımı tam temsil etmediğini gösteriyor. Not: bu grup yalnız 17 varlık içeriyor; tek varlık ≈ %6 oynatır, sonuç yön gösterir ama kesin değildir.
+4. **Seed oynaması küçük** (genel F1 std 0,008): sonuç tek bir şanslı eğitime bağlı değil.
+
+**Sonraki adım için çıkarım:** En büyük kazanç alanı gayriresmî/küçük harfli yer ve işletme adları. v1.1 yer adı sözlüğü tam bu boşluğa yönelik; ancak mühürlü cümleler tasarım sırasında görüldüğü için v1.1'in etkisi yeni bir bağımsız mühürlü partide ölçülecektir.
+
+## v1.1 — Yer adı sözlüğü (`LocationGazetteer`)
+
+Modelin boş bıraktığı yerleri dolduran (`fallback_types = {LOCATION}`), bağımsız kaynaklı sözlük katmanı.
+
+- **Kaynak:** PTT posta kodu listesi (81 il, 973 ilçe, ~32 bin mahalle/köy adı; `turkey-neighbourhoods`, MIT) ve elle derlenmiş ülke/bölge listesi. Geliştirme seti ve mühürlü test bu listelere hiçbir şey eklemek için kullanılmadı.
+- **Belirsizlik:** Her ad için eşleşme düzeyi veriden hesaplanır (`build_gazetteer.py`). WikiNER'de küçük harfle geçen adlar ("orta", "kale") ve gündelik yorumlarda küçük harfle büyük harften sık yazılanlar ("kulp", "çubuk", "bulanık") yalnız büyük harfle; ay/gün adları ("Aralık", "Pazar") yalnız "ili/ilçesi" bağlamıyla; kişi adı olarak sık geçenler ("Selim", "Menderes") yalnız kesme işaretli ekle eşleşir. Ek atma ("ceyhana", "izmirdeki"), ünsüz yumuşaması ve ASCII yazım desteklenir; ek atınca yaygın sözcüğe inen biçimler ("karşı" ≠ "Kars"+"ı") reddedilir.
+- **Kalıplar:** "<ad> Mahallesi / köyü" ve numarasız "<ad> Caddesi / Sokak / Bulvarı" (anotasyon kuralı: LOC).
+- **Adres kuralına katkı:** Adres sağa genişletmesi artık belirsiz olmayan 973 ilçenin tamamını tanıyor (önceden ~120 elle yazılmış ad).
+
+| Geliştirme seti (159 cümle), model YOK | LOC P | LOC R | LOC F1 | ADDRESS F1 |
+|---|---|---|---|---|
+| Kural katmanı | — | 0 | 0 | 1,000 |
+| Kural katmanı + sözlük | **1,000** | 0,816 | 0,899 | 1,000 |
+
+- Oracle testi (model = altın etiket): kayıp yok (sözlük modelin doğru tahminini hiçbir yerde ezmiyor).
+- Gündelik dil taraması (UCI yorumlarından rastgele 5.000 yorum, etiketsiz): 102 eşleşme, elle bakıldığında ~%90'ı gerçek yer adı (kalan hatalar: "susuz", "durağan", "şok" gibi sözcükler sözlük ayarıyla giderildi).
+- WikiNER testi (yalnız sözlük): LOC precision 0,81 (kalan "hataların" bir kısmı WikiNER'in eksik etiketleri: "Portekiz'in", "Irak'ın").
+
+**Model + sözlük** sonucu: `colab_gelistirme_v11.ipynb` ile üç seed'in geliştirme seti tahminleri üzerinden ölçülür (sonuç gelince eklenecek).
+
+**Mühürlü test notu:** Sözlük tasarlanırken mühürlü cümlelerin bir kısmı tasarım sırasında örnek olarak denendi. Bu yüzden v1.1'in mühürlü test sonucu "temiz" sayılmaz ve raporlanmaz; mühürlü testin resmî sonucu sözlüksüz v1 yapılandırmasınındır. v1.1 için temiz ölçüm, yeni bir bağımsız mühürlü parti (bağımsız yazar) ile yapılacaktır.

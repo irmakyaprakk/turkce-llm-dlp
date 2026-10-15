@@ -23,6 +23,7 @@ for path in (ROOT, ROOT / "src"):
 
 from training.ner.evaluate_model import postprocess, token_coverage  # noqa: E402
 from training.ner.train import entity_spans, span_metrics  # noqa: E402
+from turkce_llm_dlp.gazetteer import LocationGazetteer  # noqa: E402
 from turkce_llm_dlp.ner import NER_TYPES, DetectionPipeline, EntitySpan  # noqa: E402
 from turkce_llm_dlp.rules_ner import RuleEntityRecognizer  # noqa: E402
 
@@ -106,7 +107,8 @@ def main() -> None:
     recognizer = RuleEntityRecognizer()
     gold = [r["ner_tags"] for r in rows]
     rule = [spans_to_tags(r["text"], r["tokens"], recognizer.recognize(r["text"])) for r in rows]
-    rules_pipeline = DetectionPipeline([RuleEntityRecognizer()])
+    # Üretimdeki varsayılan: kural katmanı + yer adı sözlüğü (api._rule_recognizers)
+    rules_pipeline = DetectionPipeline([RuleEntityRecognizer(), LocationGazetteer()])
     result = {
         "rows": len(rows),
         "rules_only": report(gold, rule, rows),
@@ -126,9 +128,14 @@ def main() -> None:
         result["pipeline_model_only"] = pipeline_report(
             gold, [pipeline_tags(DetectionPipeline([replay]), r) for r in rows]
         )
-        hybrid = DetectionPipeline([RuleEntityRecognizer(), replay])
+        hybrid = DetectionPipeline([RuleEntityRecognizer(), LocationGazetteer(), replay])
         hybrid_tags = [pipeline_tags(hybrid, r) for r in rows]
         result["pipeline_model_plus_rules"] = pipeline_report(gold, hybrid_tags)
+        # Sözlüğün katkısını ayırmak için: yalnız kural katmanı + model (v1 yapılandırması)
+        without_gazetteer = DetectionPipeline([RuleEntityRecognizer(), replay])
+        result["pipeline_model_plus_rules_no_gazetteer"] = pipeline_report(
+            gold, [pipeline_tags(without_gazetteer, r) for r in rows]
+        )
         # Yazar grubuna / partiye göre (mühürlü testte her dosya bir yazar grubudur)
         batches = sorted({r.get("batch") for r in rows if r.get("batch")})
         result["pipeline_model_plus_rules_by_batch"] = {
