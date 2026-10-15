@@ -36,3 +36,12 @@ Veri: `augmented-v1` (bkz. `docs/data-augmentation.md`). Diğer her şey Deney 1
 3. Veri: `augmented-v2`, adreslerin %15'ini OSM ham biçiminde bırakır (`--osm-original-ratio 0.15`).
 
 **Not (yanlılık riski).** Altın setin ilk partisi ile eğitim kalıpları aynı kaynaktan yazıldı; üslup benzerliği skorları şişirebilir (ör. kişi F1 = 1,000). Sonraki partilere farklı kişilerin yazdığı cümleler eklenecek ve sonuçlar yazar grubuna göre ayrıca raporlanacak.
+
+### Son işlem sonrası (Deney 2 modeli, yeniden değerlendirme)
+
+| Test seti | Katı F1 | Son işlemli F1 | Token kapsama |
+|---|---|---|---|
+| OSM adres, sabit kalıplı cümle | 0,360 | **0,996** | 0,9995 |
+| Altın set (1. parti) | 0,935 | 0,929* | 0,994 |
+
+\* Bu ölçümde son işlem önce birleştirip sonra kırpıyordu; model ilk adresin sonuna `;` kattığında noktalı virgülle ayrılmış iki adres birleşti (altın sette adres F1 0,882 → 0,849). Sıra "kırp → birleştir → kırp" olarak düzeltildi ve testle güvenceye alındı; yeniden ölçüm bekleniyor.

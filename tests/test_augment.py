@@ -140,3 +140,12 @@ def test_eval_postprocess_matches_runtime_rules():
     tokens = ["Örnek", "Mah", ".", "Lale", "Sk", "."]
     tags = ["B-ADDRESS"] + ["I-ADDRESS"] * 5
     assert postprocess(tokens, tags) == tags
+
+
+def test_eval_postprocess_keeps_semicolon_separated_addresses_apart():
+    from training.ner.evaluate_model import postprocess
+
+    tokens = ["Lale", "Sk", ".", "No", ":", "2", ";", "Erguvan", "Sk", ".", "No", ":", "17"]
+    tags = ["B-ADDRESS"] + ["I-ADDRESS"] * 6 + ["B-ADDRESS"] + ["I-ADDRESS"] * 5
+    expected = ["B-ADDRESS"] + ["I-ADDRESS"] * 5 + ["O", "B-ADDRESS"] + ["I-ADDRESS"] * 5
+    assert postprocess(tokens, tags) == expected

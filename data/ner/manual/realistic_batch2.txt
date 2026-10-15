@@ -1,0 +1,90 @@
+# Altın test seti — 2. parti (aday). Kurallar: training/ner/ANNOTATION_RULES.md
+# Yazar grubu: proje içi (1. partiyle aynı kaynak, farklı üslup hedefli). Bağımsız yazar cümleleri ayrı dosyada tutulur.
+# Odak: uzun/dağınık metin, yazım hatası, İngilizce-Türkçe karışık iş dili, adres tarifi, çoklu adres, kurum adları.
+# Ad/soyad ve kurumlar eğitim sözlüklerinde bulunmayan adlardan seçildi. Tüm değerler uydurmadır.
+
+# --- uzun / dağınık e-posta ---
+uzun_eposta	Merhaba [[PER|Tülin]] Hanım,\nGeçen hafta konuştuğumuz konuyla ilgili [[ORG|Kayalar Mermer]] tarafında bir gelişme oldu. [[PER|Nevzat Erbil]] beyle görüştüm, numuneleri [[ADRES|Organize Sanayi Bölgesi 4. Cadde No:17 Kocasinan/Kayseri]] adresindeki depodan alabileceğimizi söyledi. Bu arada fatura bilgileri değişmiş, yeni unvan [[ORG|Kayalar Mermer İnşaat Ltd. Şti.]] olacak.\nİyi çalışmalar
+uzun_eposta	Selamlar,\nToplantıya [[ORG|Nehir Gıda]] adına [[PER|Remzi Kalkan]] ve [[PER|Feride Soylu]] katılacak. Lokasyon değişti: artık [[LOC|Ataşehir]] ofisinde değil, [[ADRES|Barbaros Mah. Begonya Sk. No:3 Kat:5 Ataşehir/İstanbul]] adresinde toplanıyoruz. Otopark yok, toplu taşıma önerilir.
+uzun_eposta	[[PER|Nuray]] merhaba, bir önceki mailde yanlış adres paylaşmışım kusura bakma. Doğrusu [[ADRES|Fevzipaşa Bulvarı No:142 Kat:3 Konak İzmir]], eski adres [[ADRES|Alsancak 1442 Sokak No:9]] idi. [[ORG|Ege Liman İşletmeleri]] sözleşmesi de ekte.
+uzun_eposta	Sayın [[PER|Sezgin Güven]],\n[[ORG|Yıldız Teknik Üniversitesi]] Makine Fakültesi bünyesindeki projeniz için talep ettiğiniz belgeler hazırlanmıştır. Belgeleri şahsen teslim almak isterseniz [[LOC|Beşiktaş]] kampüsündeki ofisimize uğrayabilirsiniz.\nSaygılarımızla,\nDoç. Dr. [[PER|Melike Tezcan]]
+uzun_eposta	Hi team, quick update: [[ORG|Papara]] entegrasyonu bu sprintte bitmiyor. [[PER|Berkay]] is on leave, [[PER|Ilgın Oral]] will cover. Müşteri tarafında contact person [[PER|Yiğit Akbulut]], ofisleri [[LOC|Maslak]]'ta.
+
+# --- WhatsApp / kısa mesaj, yazım hatalı ---
+whatsapp	[[PER|tunahan]] napıyosun aksam [[LOC|modada]] miyiz
+whatsapp	abi adres [[ADRES|yavuz selim mah 2041 sok no 7 d 12 esenyurt]] zile bas acmazsa ara
+whatsapp	[[PER|sedaa]] [[ORG|yemeksepetinden]] sipariş verdim senin adrese gelcek haberin olsun
+whatsapp	kargo gelmiş ama ben evde yokum, [[PER|banu]] teyze almış komşu
+whatsapp	[[PER|Gonca]]'nın düğünü [[LOC|Kapadokya]]'da olcakmış, otel ayarlıyoz
+whatsapp	yarin vergi dairesine gitcem kimlik fotokopisi lazımmış
+whatsapp	[[PER|taner]] hocam ödevi [[ORG|ytü]] mailine attım ulaştı mı
+whatsapp	evin adresi [[ADRES|Kızılay mh. Gazi Mustafa Kemal blv. 54/8 Çankaya]] , apartman girişi arkada
+whatsapp	[[PER|zafer]] dayının oğlu [[ORG|Aselsanda]] değil miydi ya
+whatsapp	tmm ben [[LOC|kartaldan]] çıktım [[LOC|pendike]] 20 dk
+
+# --- şikâyet / müşteri ---
+sikayet	3 haftadır [[ORG|Teknosa]] servisinden telefonumu alamadım. Fiş [[PER|Muzaffer Baysal]] adına kesildi, servis kaydı [[LOC|Gaziantep]] şubesinde açıldı.
+sikayet	Ürün [[ADRES|Cumhuriyet Mahallesi Atatürk Caddesi Gül Apt. No: 22 Daire: 6 Düzce]] adresine teslim edilmiş görünüyor ama bana ulaşmadı. Kapıcı da almamış.
+sikayet	[[ORG|Sahibinden]] üzerinden aldığım araç ekspertiz raporuyla uyuşmuyor, satıcı [[PER|Kenan Kocaman]] telefonlara çıkmıyor.
+sikayet	Faturamda [[ORG|Pınar Su]] aboneliği görünüyor ama ben hiç üye olmadım. Ad soyad: [[PER|Saadet Önal]].
+sikayet	Kuryeniz paketi yanlış apartmana bırakmış. Benim adresim [[ADRES|Yeşiltepe Mah. Kardelen Sitesi C Blok D:14 Altındağ]], bıraktığı yer yan blok.
+sikayet	[[ORG|MediaMarkt]] [[LOC|Bornova]] mağazasından aldığım ürün ikinci kez arızalandı.
+
+# --- adres tarifi (numarasız tarif = adres değil) ---
+adres_tarifi	Eczanenin üstündeki daire, yeşil kapılı bina. Zil çalışmıyor, aşağıdan seslenin.
+adres_tarifi	Çarşı içinden girip [[ORG|Halk Eğitim Merkezi]]'nin karşısındaki sokağa dönün, üçüncü bina.
+adres_tarifi	Okulun arka sokağında, köşedeki fırının yanı.
+adres_tarifi	Tam adres: [[ADRES|Selimiye Mah. Kavak Sk. No:11/2 Üsküdar]]. Metrobüsten inince sağa dönün.
+adres_tarifi	[[LOC|Kızılay]]'dan [[LOC|Tunalı Hilmi Caddesi]]'ne doğru yürüyün, parkın girişinde buluşalım.
+adres_tarifi	Mahallenin girişindeki camiden sonra ikinci sokak, mavi panjurlu ev.
+
+# --- İngilizce-Türkçe karışık iş dili ---
+karisik_dil	Can you send the contract to [[PER|Engin Saygın]]? He's at [[ORG|Kuzeyhan Lojistik]] now, adres [[ADRES|Tuzla Organize Sanayi 3. Sokak No:5 Tuzla/İstanbul]].
+karisik_dil	FYI: [[ORG|Eti]] ile meeting perşembe, [[PER|Didem Tuncer]] sunum yapacak, deck'i [[ORG|Notion]]'a koydum.
+karisik_dil	Shipping address updated → [[ADRES|Mecidiyeköy Mah. Lati Lokum Sk. No:6 D:4 Şişli]]. Please confirm, [[PER|Onur]].
+karisik_dil	[[PER|Esin]] OOO bu hafta, urgent konular için [[PER|Koray Sezer]]'e yazın.
+karisik_dil	Client [[ORG|Ülker]] wants the report by Friday, [[LOC|Ankara]] ekibi destek verecek.
+
+# --- form / CV ---
+form	Ad: [[PER|Gülşen]]\nSoyad: [[PER|Toprak]]\nİkametgah: [[ADRES|Hürriyet Mah. 6018 Sk. No:24 Bağlar/Diyarbakır]]\nMeslek: Hemşire
+form	Başvuran: [[PER|Ferhat Ilıcak]] | Kurum: [[ORG|Çukurova Elektrik]] | Şehir: [[LOC|Adana]]
+cv	Deneyim: 2021–2024 [[ORG|Netaş]], Yazılım Mühendisi. 2019–2021 [[ORG|Logo Yazılım]], Stajyer. Eğitim: [[ORG|İstanbul Üniversitesi]] Bilgisayar Mühendisliği.
+cv	Referans: [[PER|Selçuk Karaca]], Proje Müdürü, [[ORG|Havelsan]]
+form	Veli adı soyadı: [[PER|Tülay Yazıcı]]\nÖğrencinin okulu: [[ORG|Atatürk Anadolu Lisesi]]\nAdres: [[ADRES|Bahçelievler Mah. Okul Cad. No:3/5 Merkez Kırıkkale]]
+
+# --- hukuk / sağlık / resmi ---
+resmi	Müvekkilimiz [[PER|Erdal Bilgiç]] adına [[ORG|İstanbul Anadolu 7. İş Mahkemesi]]'nde açılan davada duruşma ertelenmiştir.
+resmi	Hasta [[PER|Nilgün Ekmekçi]], [[ORG|Ankara Şehir Hastanesi]] Kardiyoloji polikliniğine sevk edilmiştir.
+resmi	[[ORG|Bursa Ticaret ve Sanayi Odası]] tarafından düzenlenen belge ekte sunulmuştur.
+resmi	Kiracı [[PER|Volkan Demirtaş]], [[ADRES|Merkez Mah. İstasyon Cad. No:41 D:2 Çorlu/Tekirdağ]] adresindeki taşınmazı 01.11.2026 tarihinde tahliye edecektir.
+resmi	[[ORG|Tapu ve Kadastro Genel Müdürlüğü]] kayıtlarına göre parsel [[LOC|Gölbaşı]] ilçesinde bulunmaktadır.
+
+# --- çoklu adres / yoğun varlık ---
+coklu	Merkez: [[ADRES|Kavaklıdere Mah. Esat Cad. No:12 Çankaya/Ankara]]\nŞube 1: [[ADRES|Alsancak Mah. Kıbrıs Şehitleri Cad. No:88 Konak/İzmir]]\nŞube 2: [[ADRES|Nilüfer Organize Sanayi Bölgesi Ihlamur Sk. No:4 Bursa]]
+coklu	[[PER|Sinem Uslu]] ([[ORG|Pınar Süt]]) ve [[PER|Aysun Bayrak]] ([[ORG|Eczacıbaşı İlaç]]) [[LOC|Antalya]]'daki kongrede tanıştı.
+coklu	Eski adres [[ADRES|Gazi Mah. 15 Temmuz Cad. No:8 Sultangazi]], yeni adres [[ADRES|Göktürk Merkez Mah. Istranca Cad. No:31 Eyüpsultan]].
+
+# --- kod / log ---
+kod	logger.info("Kullanıcı [[PER|Hakkı Altıntaş]] giriş yaptı, şube: [[LOC|Trabzon]]")
+kod	INSERT INTO musteri (ad, adres) VALUES ('[[PER|Şule Eren]]', '[[ADRES|Fatih Mah. Lale Sk. No:5 Sarıyer]]');
+kod	// [[ORG|Iyzico]] sandbox anahtarı [[PER|Necla]] hanımda, prod'a almadan sor
+
+# --- zor negatifler ---
+zor_negatif	Barış görüşmeleri bu hafta yeniden başlayacak.
+zor_negatif	Sevgi dolu bir mesaj bıraktı, çok duygulandım.
+zor_negatif	Engin denizlere açılan bir gemi gibi hissediyorum.
+zor_negatif	Hilal göründü, bayram yarın başlıyor.
+zor_negatif	Ayşegül çiçekleri bu yıl erken açtı.
+zor_negatif	Yeni yönetmelik madde 7 fıkra 3 uyarınca yürürlüğe girdi.
+zor_negatif	Daire başkanı toplantıya katılamadı.
+zor_negatif	Kat malikleri toplantısı cumartesi saat 14:00'te.
+zor_negatif	Sokak röportajı videosu çok izlendi.
+zor_negatif	Caddeye bakan odalar daha gürültülü oluyor.
+zor_negatif	Numara 5'e kadar sayıp gözünü aç.
+zor_negatif	No smoking tabelası kapının yanında.
+zor_negatif	Kargo durumu: dağıtıma çıktı, tahmini teslim 17:00.
+zor_negatif	Kimlik doğrulaması başarısız oldu, lütfen tekrar deneyin.
+zor_negatif	Fatura adresi ile teslimat adresi aynı mı?
+zor_negatif	Merkez Bankası faiz kararını açıkladı.
+zor_negatif	Güneş paneli kurulumu iki gün sürecek.
+zor_negatif	Bu isimde birini tanımıyorum dedi, yanlış numaraymış.

@@ -63,7 +63,8 @@ def trim_trailing_punctuation(tokens: list[str], tags: list[str]) -> list[str]:
 
 def postprocess(tokens: list[str], tags: list[str]) -> list[str]:
     """Çalışma zamanındaki DetectionPipeline son işlemlerinin kelime düzeyi karşılığı."""
-    return trim_trailing_punctuation(tokens, merge_adjacent(tokens, tags))
+    # Önce kırp: adresin sonuna yapışmış ";" ayırıcı olarak görünür kalsın ve iki adres birleşmesin.
+    return trim_trailing_punctuation(tokens, merge_adjacent(tokens, trim_trailing_punctuation(tokens, tags)))
 
 
 def token_coverage(true_labels: list[list[str]], predicted_labels: list[list[str]]) -> dict[str, Any]:
@@ -165,6 +166,19 @@ def main() -> None:
     metrics = span_metrics(true_labels, predicted_labels, entity_types)
     merged_predictions = [postprocess(t, p) for t, p in zip(kept_tokens, predicted_labels)]
     merged_metrics = span_metrics(true_labels, merged_predictions, entity_types)
+    # Partiye/yazara göre ayrı sonuçlar (altın setin `batch` alanı varsa).
+    by_batch: dict[str, Any] = {}
+    batch_names = [row.get("batch") for row in rows]
+    for name in sorted({b for b in batch_names if b}):
+        idx = [i for i, b in enumerate(batch_names) if b == name]
+        gold_b = [true_labels[i] for i in idx]
+        pred_b = [merged_predictions[i] for i in idx]
+        by_batch[name] = {
+            "rows": len(idx),
+            "metrics": span_metrics(gold_b, [predicted_labels[i] for i in idx], entity_types),
+            "metrics_postprocessed": span_metrics(gold_b, pred_b, entity_types),
+            "token_coverage": token_coverage(gold_b, pred_b),
+        }
     support = {
         entity.lower(): sum(1 for tags in true_labels for span in entity_spans(tags) if span[0] == entity)
         for entity in entity_types
@@ -181,6 +195,7 @@ def main() -> None:
         "metrics_postprocessed": merged_metrics,
         "token_coverage": token_coverage(true_labels, merged_predictions),
         "support": support,
+        "by_batch": by_batch,
         "metric_notes": "metrics: katı tam-span; postprocessed: çalışma zamanı son işlemi (bitişik ADDRESS "
         "parçalarını birleştirme + adres sonundaki cümle noktalamasını ayırma); token_coverage: maskelenen altın varlık token oranı. "
         "support=0 olan türlerin skorları anlamsızdır.",

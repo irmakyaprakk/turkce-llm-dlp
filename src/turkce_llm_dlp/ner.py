@@ -359,7 +359,9 @@ class DetectionPipeline:
             normalized = [
                 EntitySpan(ENTITY_ALIASES.get(span.type.upper(), span.type), span.start, span.end) for span in spans
             ]
-            for span in (trim_address_span(text, item) for item in merge_adjacent_spans(text, normalized)):
+            # Önce kırp (";" gibi ayırıcılar span dışına çıksın), sonra birleştir, sonra tekrar kırp.
+            trimmed = [trim_address_span(text, item) for item in normalized]
+            for span in (trim_address_span(text, item) for item in merge_adjacent_spans(text, trimmed)):
                 kind = ENTITY_ALIASES.get(span.type.upper())
                 if kind not in NER_TYPES:
                     raise ValueError(f"NER tanıyıcısı desteklenmeyen tür döndürdü: {span.type}")

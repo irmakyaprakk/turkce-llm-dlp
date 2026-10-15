@@ -541,3 +541,20 @@ def test_address_trailing_sentence_period_is_trimmed_but_abbreviation_kept():
     assert text[kept.start : kept.end] == "Örnek Mah. Lale Sk."
     person = EntitySpan("PERSON", 0, 4)
     assert trim_address_span(text, person) == person
+
+
+def test_semicolon_inside_model_span_does_not_merge_two_addresses():
+    from turkce_llm_dlp.ner import DetectionPipeline, EntitySpan
+
+    text = "Teslimat listesi: Lale Sk. No:2 Bağcılar; Erguvan Sk. No:17 Sancaktepe"
+    first = text.index("Lale")
+    cut = text.index(";")
+    second = text.index("Erguvan")
+
+    class GreedyModel:
+        def recognize(self, _text):
+            # Model ilk adresin sonuna ";" işaretini katıyor.
+            return [EntitySpan("ADDRESS", first, cut + 1), EntitySpan("ADDRESS", second, len(text))]
+
+    values = [d.value for d in DetectionPipeline([GreedyModel()]).detect(text) if d.type == "ADDRESS"]
+    assert values == ["Lale Sk. No:2 Bağcılar", "Erguvan Sk. No:17 Sancaktepe"]
