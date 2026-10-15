@@ -117,3 +117,26 @@ def test_original_ratio_keeps_raw_osm_format():
     rng = random.Random(0)
     outputs = [render_address(parts, rng, original_ratio=1.0) for _ in range(3)]
     assert outputs == ["Lale Sokak No: 5, 34000 Örnek Mahallesi"] * 3
+
+
+def test_eval_postprocess_matches_runtime_rules():
+    from training.ner.evaluate_model import postprocess
+
+    tokens = ["adres", ":", "Lale", "Sokak", "No", ":", "5", ",", "Örnek", "Mahallesi", "."]
+    tags = [
+        "O",
+        "O",
+        "B-ADDRESS",
+        "I-ADDRESS",
+        "I-ADDRESS",
+        "I-ADDRESS",
+        "I-ADDRESS",
+        "I-ADDRESS",
+        "B-ADDRESS",
+        "I-ADDRESS",
+        "I-ADDRESS",
+    ]
+    assert postprocess(tokens, tags) == ["O", "O", "B-ADDRESS"] + ["I-ADDRESS"] * 7 + ["O"]
+    tokens = ["Örnek", "Mah", ".", "Lale", "Sk", "."]
+    tags = ["B-ADDRESS"] + ["I-ADDRESS"] * 5
+    assert postprocess(tokens, tags) == tags

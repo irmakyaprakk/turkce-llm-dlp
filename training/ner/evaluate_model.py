@@ -36,6 +36,36 @@ def merge_adjacent(tokens: list[str], tags: list[str], kinds: tuple[str, ...] = 
     return merged
 
 
+ADDRESS_ABBREVIATIONS = frozenset(
+    {"mah", "mh", "sk", "sok", "cad", "cd", "bulv", "blv", "no", "d", "k", "apt", "ap", "bl", "sit", "ltd", "şti", "aş"}
+)
+
+
+def trim_trailing_punctuation(tokens: list[str], tags: list[str]) -> list[str]:
+    """Çalışma zamanı trim_address_span'ın kelime düzeyi karşılığı: adres sonundaki
+    noktalama token'ını (kısaltma noktası değilse) adresten çıkarır."""
+    trimmed = list(tags)
+    for index, tag in enumerate(trimmed):
+        if tag != "I-ADDRESS" or tokens[index] not in {".", ",", ";", ":"}:
+            continue
+        next_tag = trimmed[index + 1] if index + 1 < len(trimmed) else "O"
+        if next_tag == "I-ADDRESS":
+            continue  # adresin ortasındaki noktalama
+        previous = tokens[index - 1].casefold() if index else ""
+        if tokens[index] == "." and previous in ADDRESS_ABBREVIATIONS:
+            continue
+        back = index
+        while back > 0 and trimmed[back] == "I-ADDRESS" and tokens[back] in {".", ",", ";", ":"}:
+            trimmed[back] = "O"
+            back -= 1
+    return trimmed
+
+
+def postprocess(tokens: list[str], tags: list[str]) -> list[str]:
+    """Çalışma zamanındaki DetectionPipeline son işlemlerinin kelime düzeyi karşılığı."""
+    return trim_trailing_punctuation(tokens, merge_adjacent(tokens, tags))
+
+
 def token_coverage(true_labels: list[list[str]], predicted_labels: list[list[str]]) -> dict[str, Any]:
     """DLP metriği: altın varlık token'larının kaçı herhangi bir türle maskelenecek (O değil)?"""
     counts: dict[str, list[int]] = {}
@@ -133,7 +163,7 @@ def main() -> None:
     entity_types = [entity for entity in model.config.id2label.values() if entity != "O"]
     entity_types = sorted({tag.split("-", 1)[1] for tag in entity_types if "-" in tag})
     metrics = span_metrics(true_labels, predicted_labels, entity_types)
-    merged_predictions = [merge_adjacent(t, p) for t, p in zip(kept_tokens, predicted_labels)]
+    merged_predictions = [postprocess(t, p) for t, p in zip(kept_tokens, predicted_labels)]
     merged_metrics = span_metrics(true_labels, merged_predictions, entity_types)
     support = {
         entity.lower(): sum(1 for tags in true_labels for span in entity_spans(tags) if span[0] == entity)
@@ -148,11 +178,11 @@ def main() -> None:
         "device": str(device),
         "max_length": args.max_length,
         "metrics": metrics,
-        "metrics_merged_adjacent": merged_metrics,
+        "metrics_postprocessed": merged_metrics,
         "token_coverage": token_coverage(true_labels, merged_predictions),
         "support": support,
-        "metric_notes": "metrics: katı tam-span; merged_adjacent: noktalamayla ayrılmış bitişik ADDRESS parçaları "
-        "birleştirilmiş (çalışma zamanı davranışı); token_coverage: maskelenen altın varlık token oranı. "
+        "metric_notes": "metrics: katı tam-span; postprocessed: çalışma zamanı son işlemi (bitişik ADDRESS "
+        "parçalarını birleştirme + adres sonundaki cümle noktalamasını ayırma); token_coverage: maskelenen altın varlık token oranı. "
         "support=0 olan türlerin skorları anlamsızdır.",
         "truncation_diagnostics": {
             "rows_over_max_length": truncated_rows,

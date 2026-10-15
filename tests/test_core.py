@@ -525,3 +525,19 @@ def test_ner_semicolon_separated_addresses_stay_separate():
     cut = text.index(";")
     spans = [EntitySpan("ADDRESS", 0, cut), EntitySpan("ADDRESS", cut + 2, len(text))]
     assert merge_adjacent_spans(text, spans) == spans
+
+
+def test_address_trailing_sentence_period_is_trimmed_but_abbreviation_kept():
+    from turkce_llm_dlp.ner import EntitySpan, trim_address_span
+
+    text = "Teslimat adresi: Lale Sokak No: 5, Örnek Mahallesi."
+    start = text.index("Lale")
+    trimmed = trim_address_span(text, EntitySpan("ADDRESS", start, len(text)))
+    assert text[trimmed.start : trimmed.end] == "Lale Sokak No: 5, Örnek Mahallesi"
+
+    text = "Adres: Örnek Mah. Lale Sk."
+    start = text.index("Örnek")
+    kept = trim_address_span(text, EntitySpan("ADDRESS", start, len(text)))
+    assert text[kept.start : kept.end] == "Örnek Mah. Lale Sk."
+    person = EntitySpan("PERSON", 0, 4)
+    assert trim_address_span(text, person) == person

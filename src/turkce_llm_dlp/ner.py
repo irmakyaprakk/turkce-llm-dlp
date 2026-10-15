@@ -306,6 +306,31 @@ def merge_adjacent_spans(text: str, spans: Iterable[EntitySpan]) -> list[EntityS
     return merged
 
 
+# Adres sonunda noktası kendine ait olan kısaltmalar (küçük harf, noktasız).
+ADDRESS_ABBREVIATIONS = frozenset(
+    {"mah", "mh", "sk", "sok", "cad", "cd", "bulv", "blv", "no", "d", "k", "apt", "ap", "bl", "sit", "ltd", "şti", "aş"}
+)
+_TRAILING = ".,;:"
+
+
+def trim_address_span(text: str, span: EntitySpan) -> EntitySpan:
+    """Adres sonundaki cümle noktalamasını span dışına alır ("…Mahallesi." → "…Mahallesi").
+
+    Nokta bir kısaltmaya aitse ("Sk.", "Mah.", "No.") korunur. Model cümle sonu
+    noktasını adrese katmaya eğilimli olduğundan bu, sınırları tutarlı kılar.
+    """
+    if span.type != "ADDRESS":
+        return span
+    start, end = span.start, span.end
+    while end > start and text[end - 1] in _TRAILING + " ":
+        if text[end - 1] == ".":
+            word = text[start : end - 1].rsplit(maxsplit=1)[-1] if text[start : end - 1].strip() else ""
+            if word.casefold().translate(str.maketrans("", "", ".")) in ADDRESS_ABBREVIATIONS or word.endswith("."):
+                break
+        end -= 1
+    return EntitySpan(span.type, start, end) if end > start else span
+
+
 class DetectionPipeline:
     """Combine deterministic rule matches with optional NER recognizers."""
 
@@ -334,7 +359,7 @@ class DetectionPipeline:
             normalized = [
                 EntitySpan(ENTITY_ALIASES.get(span.type.upper(), span.type), span.start, span.end) for span in spans
             ]
-            for span in merge_adjacent_spans(text, normalized):
+            for span in (trim_address_span(text, item) for item in merge_adjacent_spans(text, normalized)):
                 kind = ENTITY_ALIASES.get(span.type.upper())
                 if kind not in NER_TYPES:
                     raise ValueError(f"NER tanıyıcısı desteklenmeyen tür döndürdü: {span.type}")
