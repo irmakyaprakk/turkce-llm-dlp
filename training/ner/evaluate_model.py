@@ -13,6 +13,46 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from training.ner.train import entity_spans, span_metrics
 
+GAP_TOKENS = frozenset({",", ";", "/", "-", "–"})
+
+
+def merge_adjacent(tokens: list[str], tags: list[str], kinds: tuple[str, ...] = ("ADDRESS",)) -> list[str]:
+    """Aralarında yalnızca noktalama olan aynı türden bitişik varlıkları birleştirir.
+
+    Çalışma zamanındaki DetectionPipeline birleştirmesinin kelime düzeyi karşılığıdır:
+    "…No: 5" + "," + "X Mahallesi" iki ayrı ADDRESS yerine tek ADDRESS sayılır.
+    """
+    merged = list(tags)
+    for index, tag in enumerate(merged):
+        if not tag.startswith("B-") or tag[2:] not in kinds:
+            continue
+        kind = tag[2:]
+        back = index - 1
+        while back >= 0 and merged[back] == "O" and tokens[back] in GAP_TOKENS:
+            back -= 1
+        if back >= 0 and merged[back] in (f"B-{kind}", f"I-{kind}"):
+            for gap in range(back + 1, index + 1):
+                merged[gap] = f"I-{kind}"
+    return merged
+
+
+def token_coverage(true_labels: list[list[str]], predicted_labels: list[list[str]]) -> dict[str, Any]:
+    """DLP metriği: altın varlık token'larının kaçı herhangi bir türle maskelenecek (O değil)?"""
+    counts: dict[str, list[int]] = {}
+    for gold, pred in zip(true_labels, predicted_labels):
+        for gold_tag, pred_tag in zip(gold, pred):
+            if gold_tag == "O":
+                continue
+            entry = counts.setdefault(gold_tag[2:], [0, 0])
+            entry[0] += 1
+            entry[1] += pred_tag != "O"
+    total, covered = sum(v[0] for v in counts.values()), sum(v[1] for v in counts.values())
+    result: dict[str, Any] = {"overall_coverage": covered / total if total else None}
+    for kind, (gold_tokens, hit) in sorted(counts.items()):
+        result[f"{kind.lower()}_coverage"] = hit / gold_tokens
+        result[f"{kind.lower()}_tokens"] = gold_tokens
+    return result
+
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     with path.open(encoding="utf-8") as stream:
@@ -46,6 +86,7 @@ def main() -> None:
     id_to_label = {int(key): value for key, value in model.config.id2label.items()}
     true_labels: list[list[str]] = []
     predicted_labels: list[list[str]] = []
+    kept_tokens: list[list[str]] = []
     truncated_rows = 0
     omitted_word_count = 0
     gold_entities_past_limit = 0
@@ -88,9 +129,16 @@ def main() -> None:
                     )
                 true_labels.append(gold)
                 predicted_labels.append(pred)
+                kept_tokens.append([row["tokens"][w] for w in sorted(kept_words)])
     entity_types = [entity for entity in model.config.id2label.values() if entity != "O"]
     entity_types = sorted({tag.split("-", 1)[1] for tag in entity_types if "-" in tag})
     metrics = span_metrics(true_labels, predicted_labels, entity_types)
+    merged_predictions = [merge_adjacent(t, p) for t, p in zip(kept_tokens, predicted_labels)]
+    merged_metrics = span_metrics(true_labels, merged_predictions, entity_types)
+    support = {
+        entity.lower(): sum(1 for tags in true_labels for span in entity_spans(tags) if span[0] == entity)
+        for entity in entity_types
+    }
     result = {
         "model_dir": str(args.model_dir),
         "data_dir": str(args.data_dir),
@@ -100,6 +148,12 @@ def main() -> None:
         "device": str(device),
         "max_length": args.max_length,
         "metrics": metrics,
+        "metrics_merged_adjacent": merged_metrics,
+        "token_coverage": token_coverage(true_labels, merged_predictions),
+        "support": support,
+        "metric_notes": "metrics: katı tam-span; merged_adjacent: noktalamayla ayrılmış bitişik ADDRESS parçaları "
+        "birleştirilmiş (çalışma zamanı davranışı); token_coverage: maskelenen altın varlık token oranı. "
+        "support=0 olan türlerin skorları anlamsızdır.",
         "truncation_diagnostics": {
             "rows_over_max_length": truncated_rows,
             "omitted_word_count": omitted_word_count,

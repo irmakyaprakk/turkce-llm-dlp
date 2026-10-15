@@ -351,12 +351,20 @@ def _restyle_street(street: str, rng: random.Random) -> str:
     return street
 
 
-def render_address(parts: AddressParts, rng: random.Random) -> str:
+def original_osm_text(parts: AddressParts) -> str:
+    """OSM dışa aktarımındaki ham biçim: "Sokak No: 5, 34000 X Mahallesi"."""
+    tail = f"{parts.postal} {parts.area}" if parts.postal else parts.area
+    return f"{parts.street} No: {parts.number}, {tail}"
+
+
+def render_address(parts: AddressParts, rng: random.Random, original_ratio: float = 0.0) -> str:
     """Bir OSM adresini Türkiye'de yaygın yazım biçimlerinden birine çevirir.
 
     Bileşenler (mahalle, sokak, numara, daire/kat, posta kodu, il) rastgele
     biçim ve sırayla yazılır. Daire/kat OSM'de yok; gerçekçi biçim için sentetik eklenir.
     """
+    if original_ratio and rng.random() < original_ratio:
+        return original_osm_text(parts)
     street = _restyle_street(parts.street, rng)
     mahalle = parts.mahalle
     pieces: list[str] = []

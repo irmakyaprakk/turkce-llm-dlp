@@ -280,6 +280,32 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
                 self._lock.release()
 
 
+_MERGE_GAP = frozenset(" \t\n,;/-–")
+
+
+def merge_adjacent_spans(text: str, spans: Iterable[EntitySpan]) -> list[EntitySpan]:
+    """Bitişik aynı türden ADDRESS parçalarını tek span'a birleştirir.
+
+    Model bir adresi noktalamada bölebilir ("…No: 5" + ", X Mahallesi"). Aradaki
+    metin yalnızca boşluk/virgül/eğik çizgi/tire ise iki parça tek adres sayılır;
+    böylece tek placeholder üretilir ve adresin bağlamı LLM'e parça parça gitmez.
+    """
+    ordered = sorted(spans, key=lambda span: (span.start, span.end))
+    merged: list[EntitySpan] = []
+    for span in ordered:
+        previous = merged[-1] if merged else None
+        if (
+            previous is not None
+            and previous.type == span.type == "ADDRESS"
+            and previous.end <= span.start
+            and all(char in _MERGE_GAP for char in text[previous.end : span.start])
+        ):
+            merged[-1] = EntitySpan("ADDRESS", previous.start, max(previous.end, span.end))
+        else:
+            merged.append(span)
+    return merged
+
+
 class DetectionPipeline:
     """Combine deterministic rule matches with optional NER recognizers."""
 
@@ -303,6 +329,12 @@ class DetectionPipeline:
                     self._failure_logged.add(recognizer_index)
                 continue
             for span in spans:
+                if not (0 <= span.start < span.end <= len(text)):
+                    raise ValueError("NER tanıyıcısı metin sınırları dışında offset döndürdü.")
+            normalized = [
+                EntitySpan(ENTITY_ALIASES.get(span.type.upper(), span.type), span.start, span.end) for span in spans
+            ]
+            for span in merge_adjacent_spans(text, normalized):
                 kind = ENTITY_ALIASES.get(span.type.upper())
                 if kind not in NER_TYPES:
                     raise ValueError(f"NER tanıyıcısı desteklenmeyen tür döndürdü: {span.type}")

@@ -110,3 +110,10 @@ def test_filler_blocks_gold_names():
     filler = Filler(rng, pool, {"PERSON": blocked, "ORG": {key("Migros")}, "LOCATION": set()})
     assert "Ayşe" not in filler.first_names and "Mehmet" not in filler.first_names
     assert "Migros" not in filler.orgs
+
+
+def test_original_ratio_keeps_raw_osm_format():
+    parts = AddressParts("Lale Sokak", "5", "34000", "Örnek Mahallesi")
+    rng = random.Random(0)
+    outputs = [render_address(parts, rng, original_ratio=1.0) for _ in range(3)]
+    assert outputs == ["Lale Sokak No: 5, 34000 Örnek Mahallesi"] * 3

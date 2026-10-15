@@ -491,3 +491,28 @@ def test_prepare_data_maps_wiki_labels_and_writes_splits(tmp_path):
     train = [json.loads(line) for line in (output / "train.jsonl").read_text(encoding="utf-8").splitlines()]
     assert train[0]["ner_tags"] == ["B-PERSON", "B-LOCATION", "B-ORG", "O"]
     assert train[1]["source"] == "synthetic-address-v1"
+
+
+def test_ner_adjacent_address_parts_are_merged():
+    from turkce_llm_dlp.ner import DetectionPipeline, EntitySpan
+
+    text = "Adres: Lale Sokak No: 5, Örnek Mahallesi. Kişi: Ali, Veli"
+    first = text.index("Lale")
+    comma = text.index(",")
+    second_end = text.index(".")
+    ali = text.index("Ali")
+    veli = text.index("Veli")
+
+    class Split:
+        def recognize(self, _text):
+            return [
+                EntitySpan("ADDRESS", first, comma),
+                EntitySpan("ADDRESS", comma + 2, second_end),
+                EntitySpan("PERSON", ali, ali + 3),
+                EntitySpan("PER", veli, veli + 4),
+            ]
+
+    found = [(d.type, d.value) for d in DetectionPipeline([Split()]).detect(text)]
+    assert ("ADDRESS", "Lale Sokak No: 5, Örnek Mahallesi") in found
+    # Kişiler birleştirilmez: iki ayrı kişi iki ayrı placeholder almalı.
+    assert ("PERSON", "Ali") in found and ("PERSON", "Veli") in found

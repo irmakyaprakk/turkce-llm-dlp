@@ -104,8 +104,15 @@ def load_gold(manual_dir: Path) -> tuple[set[str], set[str], dict[str, set[str]]
 class Filler:
     """Kalıp slotlarını doldurur; altın setteki kişi/kurum adlarını kullanmaz."""
 
-    def __init__(self, rng: random.Random, address_pool: list[AddressParts], gold_entities: dict[str, set[str]]):
+    def __init__(
+        self,
+        rng: random.Random,
+        address_pool: list[AddressParts],
+        gold_entities: dict[str, set[str]],
+        original_ratio: float = 0.0,
+    ):
         self.rng = rng
+        self.original_ratio = original_ratio
         self.address_pool = address_pool
         self.blocked_per = gold_entities["PERSON"]
         self.first_names = [n for n in T.FIRST_NAMES if key(n) not in self.blocked_per]
@@ -153,7 +160,7 @@ class Filler:
             names, weights = zip(*self.locations, strict=True)
             return rng.choices(names, weights=[w / len(names) for w in weights])[0]
         if slot == "ADDR":
-            return render_address(rng.choice(self.address_pool), rng)
+            return render_address(rng.choice(self.address_pool), rng, self.original_ratio)
         if slot == "STREET":
             return street_only(rng.choice(self.address_pool), rng)
         if slot == "MAH":
@@ -245,6 +252,12 @@ def main() -> None:
     ap.add_argument("--addresses", type=int, nargs=2, default=(5000, 400), metavar=("TRAIN", "DEV"))
     ap.add_argument("--contexts", type=int, nargs=2, default=(9000, 1000), metavar=("TRAIN", "DEV"))
     ap.add_argument("--negatives", type=int, nargs=2, default=(1200, 120), metavar=("TRAIN", "DEV"))
+    ap.add_argument(
+        "--osm-original-ratio",
+        type=float,
+        default=0.0,
+        help="adreslerin bu oranı OSM ham biçiminde bırakılır (v1: 0.0, v2: 0.15)",
+    )
     args = ap.parse_args()
 
     rng = random.Random(args.seed)
@@ -275,9 +288,9 @@ def main() -> None:
             )
 
         seen: set[str] = set()
-        filler = Filler(rng, pools[split], gold_entities)
+        filler = Filler(rng, pools[split], gold_entities, args.osm_original_ratio)
         for i in range(args.addresses[index]):
-            text = render_address(rng.choice(pools[split]), rng)
+            text = render_address(rng.choice(pools[split]), rng, args.osm_original_ratio)
             row = make_row(
                 f"osm-restyled-{split}-{i}",
                 "openstreetmap-tr-restyled",
@@ -319,6 +332,7 @@ def main() -> None:
     report = {
         "schema_version": 1,
         "seed": args.seed,
+        "osm_original_ratio": args.osm_original_ratio,
         "rows": {s: len(r) for s, r in splits.items()},
         "sources": {s: dict(Counter(r["source"] for r in rows)) for s, rows in splits.items()},
         "variants": {s: dict(Counter(r.get("variant", "orig") for r in rows)) for s, rows in splits.items()},
