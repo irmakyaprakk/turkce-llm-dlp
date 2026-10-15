@@ -173,7 +173,15 @@ NON_ADDRESS_NUMBER_CONTEXT = frozenset(
 
 
 class RuleEntityRecognizer:
-    """`EntityRecognizer` arayüzüne uyan, model gerektirmeyen ORG/ADDRESS tanıyıcı."""
+    """`EntityRecognizer` arayüzüne uyan, model gerektirmeyen ORG/ADDRESS tanıyıcı.
+
+    ADDRESS sınırlarında kurallar modelden daha tutarlı olduğundan (çapa + anahtar sözcük),
+    ADDRESS span'ları çakışan model span'larına üstün gelir.
+    """
+
+    authoritative_types = frozenset({"ADDRESS"})
+    # Kurum sınırlarında (alt birimler, "ve" bağlaçları) model daha isabetli; kural yalnız boşluk doldurur.
+    fallback_types = frozenset({"ORG"})
 
     def recognize(self, text: str) -> Iterable[EntitySpan]:
         tokens = [(m.group(), m.start(), m.end()) for m in TOKEN_RE.finditer(text)]
@@ -341,6 +349,8 @@ class RuleEntityRecognizer:
             cursor -= 1
         if not candidates:
             return start
+        if len(candidates) == 2 and keys[candidates[0]] == "merkez" and tokens[candidates[1]][0][:1].isupper():
+            return candidates[1]  # "Göktürk Merkez Mah."
         if len(candidates) == 2 and keys[candidates[1]] in COMPOUND_FIRST:
             return candidates[1]
         if len(candidates) == 2 and tokens[candidates[0]][0].isdigit() and tokens[candidates[1]][0][:1].isupper():

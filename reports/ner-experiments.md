@@ -67,3 +67,21 @@ v2'ye ek olarak: 10.000 cümle 68 yeni çerçeveden (çok cümleli e-posta, şik
 ## Elenen veri kaynağı
 
 SUNLP Twitter NER (LREC 2022): Apache-2.0, ancak depo yalnızca tweet kimliği ve karakter konumu içeriyor; metin X API ile yeniden indirilmeli. Kullanılmadı (bkz. `docs/evaluation-protocol.md`).
+
+## Deney 3 — `augmented_v2_seed42` (OSM ham biçimi %15)
+
+| Test seti | Katı F1 | Son işlemli F1 | Token kapsama |
+|---|---|---|---|
+| WikiNER | 0,875 | – | – |
+| OSM kalıplı cümle | **0,908** (v1: 0,360) | 0,999 | 0,9999 |
+| Geliştirme seti (159 cümle) | 0,890 | 0,909 | 0,993 |
+
+Geliştirme setinde tür bazında (son işlemli): kişi 0,958 · yer 0,974 · adres 0,907 · kurum 0,794. Kapsama: kişi/yer/adres 1,000, kurum 0,960. Hipotez doğrulandı: ham OSM biçimini eklemek sınır hatasını son işlem olmadan da büyük ölçüde giderdi; WikiNER korunur.
+
+### Hata analizi bulguları ve düzeltmeler (geliştirme seti)
+
+1. **Birleşim politikası:** kural ADDRESS'te daha isabetli (0,976 vs 0,907) ama model bir şey bulduğunda yok sayılıyordu. Yeni politika: ADDRESS'te kural öncelikli (`authoritative_types`), ORG'de model öncelikli, kural yalnız boşluk doldurur (`fallback_types`). Oracle testi (model = altın etiket): hibrit 1,000 — kural katmanı doğru bir model tahminini hiçbir zaman bozmaz.
+2. **Değerlendirme üretimle birebir değildi:** TCKN/IBAN değerleri "fazla adres" sayılıyordu; üretimde bunları regex kuralları yakalar. `evaluate_rules.py` artık kaydedilmiş model tahminlerini üretimdeki `DetectionPipeline` içinde yeniden oynatır (`pipeline_*` metrikleri).
+3. **Yanlış alarmlar:** SQL/kod anahtar sözcükleri, İngilizce gün adları, "İK" gibi birim kısaltmaları, büyük harfli cümleler → v3'e 22 yeni negatif çerçeve eklendi.
+4. **Etiket hatası:** geliştirme setinde "Merkez Bankası" zor negatif yazılmıştı; gerçek kurum olduğu için ORG olarak düzeltildi.
+5. **Bilinen belirsizlik:** kurum + alt birim ("… Üniversitesi Makine Fakültesi", "… Belediyesi Fen İşleri Müdürlüğü") sınırları; anotasyon kuralı yalnız ana kurumu etiketler. Kapsamayı etkilemez.

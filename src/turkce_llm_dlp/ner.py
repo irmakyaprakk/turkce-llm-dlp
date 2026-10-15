@@ -342,7 +342,14 @@ class DetectionPipeline:
         rules = detect(text)
         selected = list(rules)
         candidates: list[Detection] = []
+        authoritative: list[Detection] = []
+        fallback: list[Detection] = []
         for recognizer_index, recognizer in enumerate(self.recognizers):
+            # Bir tanıyıcı bazı türlerde sınırları daha güvenilir bulabilir (ör. kural katmanı ADDRESS);
+            # o türdeki span'ları çakışan diğer tanıyıcı span'larının önüne geçer.
+            priority_types = getattr(recognizer, "authoritative_types", frozenset())
+            # Bazı türlerde ise yalnızca diğer tanıyıcıların boş bıraktığı yeri doldurur (ör. kural ORG).
+            fallback_types = getattr(recognizer, "fallback_types", frozenset())
             try:
                 spans = tuple(recognizer.recognize(text))
             except Exception:
@@ -367,11 +374,20 @@ class DetectionPipeline:
                     raise ValueError(f"NER tanıyıcısı desteklenmeyen tür döndürdü: {span.type}")
                 if not (0 <= span.start < span.end <= len(text)):
                     raise ValueError("NER tanıyıcısı metin sınırları dışında offset döndürdü.")
-                candidates.append(Detection(kind, span.start, span.end, text[span.start : span.end]))
+                item = Detection(kind, span.start, span.end, text[span.start : span.end])
+                if kind in priority_types:
+                    authoritative.append(item)
+                elif kind in fallback_types:
+                    fallback.append(item)
+                else:
+                    candidates.append(item)
 
         # Deterministic rules take precedence over model spans. Model spans
         # that overlap each other are resolved longest-first at each position.
-        for item in sorted(candidates, key=lambda d: (d.start, -(d.end - d.start), d.type)):
+        ordered = sorted(authoritative, key=lambda d: (d.start, -(d.end - d.start), d.type))
+        ordered += sorted(candidates, key=lambda d: (d.start, -(d.end - d.start), d.type))
+        ordered += sorted(fallback, key=lambda d: (d.start, -(d.end - d.start), d.type))
+        for item in ordered:
             if not any(item.start < prior.end and item.end > prior.start for prior in selected):
                 selected.append(item)
         return sorted(selected, key=lambda d: d.start)

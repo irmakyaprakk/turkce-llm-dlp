@@ -126,6 +126,33 @@ TRAIN_NEGATIVES_V3 = (
     "toplantı {TIME}'da, oda no {NUM}",
     "ödeme alındı, teşekkürler",
     "şifremi unuttum nasıl sıfırlarım",
+    # kod / SQL / log: büyük harfli anahtar sözcükler varlık değildir
+    "SELECT id, ad FROM musteri WHERE durum = 'aktif';",
+    "UPDATE siparis SET durum = 'iptal' WHERE id = {NUM};",
+    "DELETE FROM oturum WHERE bitis < NOW();",
+    "CREATE TABLE fatura (id SERIAL PRIMARY KEY, tutar NUMERIC);",
+    "GET /api/v1/orders?status=PENDING 200 OK",
+    "WARN RetryPolicy: max attempts reached, giving up",
+    "if (user == null) return ERROR_NOT_FOUND;",
+    "TODO: README güncellenecek, CHANGELOG eklenecek",
+    # İngilizce gün/ay ve iş jargonu
+    "Deadline is Friday, let's sync on Monday morning.",
+    "Q3 review moved to Thursday, agenda TBD.",
+    "Please send the report by end of day Tuesday.",
+    "Sprint planning every Wednesday at {TIME}.",
+    # departman / birim kısaltmaları
+    "İK ile görüştüm, izin formu onaylandı.",
+    "BT ekibi bilgisayarı yarın teslim edecek.",
+    "Satın alma ve muhasebe birimleri toplantıya katılacak.",
+    "Ar-Ge bütçesi bu çeyrekte artırıldı.",
+    # büyük harfle yazılmış (bağırma) ama varlık içermeyen cümleler
+    "LÜTFEN SİPARİŞİMİ İPTAL EDİN",
+    "ACİL DÖNÜŞ BEKLİYORUM, ÜRÜN HÂLÂ GELMEDİ",
+    "BU KADAR GEÇ TESLİMAT OLMAZ",
+    # büyük harfle başlayan sıradan sözcükler (isim/kurum değil)
+    "Intranet sayfasındaki duyuruyu okudunuz mu?",
+    "Portal üzerinden başvuru yapılabilir.",
+    "Dashboard'daki rakamlar güncellenmedi.",
 )
 
 DEV_NEGATIVES_V3 = (

@@ -23,6 +23,7 @@ for path in (ROOT, ROOT / "src"):
 
 from training.ner.evaluate_model import postprocess, token_coverage  # noqa: E402
 from training.ner.train import entity_spans, span_metrics  # noqa: E402
+from turkce_llm_dlp.ner import NER_TYPES, DetectionPipeline, EntitySpan  # noqa: E402
 from turkce_llm_dlp.rules_ner import RuleEntityRecognizer  # noqa: E402
 
 TOKEN_RE = re.compile(r"\w+(?:['’]\w+)*|[^\w\s]", re.UNICODE)
@@ -55,6 +56,32 @@ def union(model_tags: list[str], rule_tags: list[str]) -> list[str]:
     return merged
 
 
+class ReplayRecognizer:
+    """Önceden kaydedilmiş model tahminlerini (kelime düzeyi BIO) çalışma zamanındaki gibi
+    karakter span'ı olarak döndürür; böylece değerlendirme üretimdeki DetectionPipeline'ı
+    (TCKN/IBAN kuralları, birleştirme/kırpma, kural önceliği) birebir çalıştırır."""
+
+    def __init__(self, predictions: dict[str, list[str]], rows: list[dict]):
+        self._by_text = {row["text"]: predictions[row["id"]] for row in rows}
+
+    def recognize(self, text: str):
+        tags = self._by_text[text]
+        offsets = [(m.start(), m.end()) for m in TOKEN_RE.finditer(text)]
+        return [EntitySpan(kind, offsets[s][0], offsets[e - 1][1]) for kind, s, e in entity_spans(tags)]
+
+
+def pipeline_tags(pipeline: DetectionPipeline, row: dict) -> list[str]:
+    """Üretim boru hattının NER türündeki tespitlerini satır token'larına BIO olarak işler.
+    TCKN/IBAN/e-posta gibi kural tespitleri NER etiketi değildir; yalnızca çakışan
+    model/kural span'larını bastırır (üretimdeki gibi)."""
+    detections = [d for d in pipeline.detect(row["text"]) if d.type in NER_TYPES]
+    return spans_to_tags(row["text"], row["tokens"], detections)
+
+
+def pipeline_report(gold, pred) -> dict:
+    return {"metrics": span_metrics(gold, pred, ENTITY_TYPES), "token_coverage": token_coverage(gold, pred)}
+
+
 def report(gold, pred, rows) -> dict:
     post = [postprocess(r["tokens"], p) for r, p in zip(rows, pred)]
     return {
@@ -79,7 +106,12 @@ def main() -> None:
     recognizer = RuleEntityRecognizer()
     gold = [r["ner_tags"] for r in rows]
     rule = [spans_to_tags(r["text"], r["tokens"], recognizer.recognize(r["text"])) for r in rows]
-    result = {"rows": len(rows), "rules_only": report(gold, rule, rows)}
+    rules_pipeline = DetectionPipeline([RuleEntityRecognizer()])
+    result = {
+        "rows": len(rows),
+        "rules_only": report(gold, rule, rows),
+        "pipeline_rules_only": pipeline_report(gold, [pipeline_tags(rules_pipeline, r) for r in rows]),
+    }
     # Kural katmanı yalnız ADDRESS/ORG üretir; o türlerdeki skorlar anlamlıdır.
     if args.with_predictions:
         preds = {}
@@ -89,6 +121,20 @@ def main() -> None:
         model = [preds[r["id"]] for r in rows]
         result["model_only"] = report(gold, model, rows)
         result["model_plus_rules"] = report(gold, [union(m, k) for m, k in zip(model, rule)], rows)
+        # Üretimle birebir: DetectionPipeline (regex kuralları + kural katmanı + model, son işlem dahil)
+        replay = ReplayRecognizer(preds, rows)
+        result["pipeline_model_only"] = pipeline_report(
+            gold, [pipeline_tags(DetectionPipeline([replay]), r) for r in rows]
+        )
+        hybrid = DetectionPipeline([RuleEntityRecognizer(), replay])
+        hybrid_tags = [pipeline_tags(hybrid, r) for r in rows]
+        result["pipeline_model_plus_rules"] = pipeline_report(gold, hybrid_tags)
+        if args.show_errors:
+            for r, g, p in zip(rows, gold, hybrid_tags):
+                for kind, s, e in sorted(set(entity_spans(g)) - set(entity_spans(p))):
+                    print(f"HİBRİT KAÇTI {kind:8} | {' '.join(r['tokens'][s:e]):40} | {r.get('batch', '')}")
+                for kind, s, e in sorted(set(entity_spans(p)) - set(entity_spans(g))):
+                    print(f"HİBRİT FAZLA {kind:8} | {' '.join(r['tokens'][s:e]):40} | {r.get('batch', '')}")
     if args.show_errors:
         for r, g, p in zip(rows, gold, rule):
             gs = {s for s in entity_spans(g) if s[0] in ("ADDRESS", "ORG")}

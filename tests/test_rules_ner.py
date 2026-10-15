@@ -44,3 +44,32 @@ def test_org_suffixes_and_chained_heads():
 def test_org_needs_a_name_and_lowercase_as_is_not_company():
     assert found("Bankası belli değil, üniversitesi de.") == []
     assert found("Things such as Kadıköy as well") == []
+
+
+def test_pipeline_precedence_rule_address_wins_model_org_wins():
+    from turkce_llm_dlp.ner import DetectionPipeline, EntitySpan
+
+    text = "Kadıköy Belediyesi Fen İşleri Müdürlüğü'ne, kargo karsiyaka mah 5011 sk no 12 trabzon a bırakıldı"
+    addr_start = text.index("karsiyaka")
+
+    class Model:
+        def recognize(self, _text):
+            # Model kurumu doğru, adresi taşırarak buluyor ("... trabzon a").
+            return [
+                EntitySpan("ORG", 0, len("Kadıköy Belediyesi")),
+                EntitySpan("ADDRESS", addr_start, text.index(" bırakıldı")),
+            ]
+
+    found = [(d.type, d.value) for d in DetectionPipeline([RuleEntityRecognizer(), Model()]).detect(text)]
+    assert ("ORG", "Kadıköy Belediyesi") in found  # kural ORG'u daha uzun ama model öncelikli
+    assert ("ADDRESS", "karsiyaka mah 5011 sk no 12 trabzon") in found  # adreste kural öncelikli
+
+
+def test_rule_org_fills_gap_when_model_finds_nothing():
+    from turkce_llm_dlp.ner import DetectionPipeline
+
+    found = [
+        (d.type, d.value)
+        for d in DetectionPipeline([RuleEntityRecognizer()]).detect("Ekte Toros Kimya A.Ş. teklifi var.")
+    ]
+    assert found == [("ORG", "Toros Kimya A.Ş.")]

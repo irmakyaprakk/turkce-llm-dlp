@@ -85,6 +85,6 @@ zor_negatif	No smoking tabelası kapının yanında.
 zor_negatif	Kargo durumu: dağıtıma çıktı, tahmini teslim 17:00.
 zor_negatif	Kimlik doğrulaması başarısız oldu, lütfen tekrar deneyin.
 zor_negatif	Fatura adresi ile teslimat adresi aynı mı?
-zor_negatif	Merkez Bankası faiz kararını açıkladı.
+resmi	[[ORG|Merkez Bankası]] faiz kararını açıkladı.
 zor_negatif	Güneş paneli kurulumu iki gün sürecek.
 zor_negatif	Bu isimde birini tanımıyorum dedi, yanlış numaraymış.
