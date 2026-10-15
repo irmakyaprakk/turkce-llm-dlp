@@ -280,7 +280,7 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
                 self._lock.release()
 
 
-_MERGE_GAP = frozenset(" \t\n,;/-–")
+_MERGE_GAP = frozenset(" \t,/-–")  # ";" ve satır sonu ayrı adresleri ayırır
 
 
 def merge_adjacent_spans(text: str, spans: Iterable[EntitySpan]) -> list[EntitySpan]:

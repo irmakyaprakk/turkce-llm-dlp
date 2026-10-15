@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from training.ner.train import entity_spans, span_metrics
 
-GAP_TOKENS = frozenset({",", ";", "/", "-", "–"})
+GAP_TOKENS = frozenset({",", "/", "-", "–"})  # ";" liste ayırıcıdır: ayrı adresleri birleştirmez
 
 
 def merge_adjacent(tokens: list[str], tags: list[str], kinds: tuple[str, ...] = ("ADDRESS",)) -> list[str]:

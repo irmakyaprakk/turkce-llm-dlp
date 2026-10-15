@@ -516,3 +516,12 @@ def test_ner_adjacent_address_parts_are_merged():
     assert ("ADDRESS", "Lale Sokak No: 5, Örnek Mahallesi") in found
     # Kişiler birleştirilmez: iki ayrı kişi iki ayrı placeholder almalı.
     assert ("PERSON", "Ali") in found and ("PERSON", "Veli") in found
+
+
+def test_ner_semicolon_separated_addresses_stay_separate():
+    from turkce_llm_dlp.ner import EntitySpan, merge_adjacent_spans
+
+    text = "Lale Sk. No:2 Bağcılar; Erguvan Sk. No:17 Sancaktepe"
+    cut = text.index(";")
+    spans = [EntitySpan("ADDRESS", 0, cut), EntitySpan("ADDRESS", cut + 2, len(text))]
+    assert merge_adjacent_spans(text, spans) == spans
