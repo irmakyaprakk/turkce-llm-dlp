@@ -1,0 +1,20 @@
+# MÜHÜRLÜ FİNAL TEST — yazar grubu: bağımsız yazar (proje sahibi, modelin eğitim verisini yazmadı).
+# Cümleler yazarın kendi üslubuyla yazıldı (küçük harf, yazım hataları korunmuştur).
+# Mahremiyet: kişi adı, adres ve apartman adları biçimi korunarak uydurma karşılıklarla değiştirildi.
+# Bu dosya üzerinde hata analizi veya ayar YAPILMAZ (bkz. docs/evaluation-protocol.md).
+
+adres_tarifi	[[ORG|tadım rstoranın]] aradan girince sola dönünce [[ADRES|bahçe mah kemal ersoy blv nergis apt kat 4]]
+kargo	kargo [[LOC|ceyhana]] gelecek
+hoca	[[PER|nuri]] hocam merhaba yarın ders iptal mi
+form	tc 10018370255 deryak@gmail.com
+eposta	ben [[PER|derya kaplan]] bilişim mühendisliği 4. sınıf öğrencisiyim
+banka	sonu 7788 ile biten kartım kullanıma kapanmış
+bulusma	[[LOC|bucaktaki]] türkkahvesine gidelim
+ev_sahibi	iyi akşamlar su boruları arızalı ama [[LOC|bahçe mahallesinin]] tamamı böyleymiş
+iade	iyi günler ben [[PER|derya kaplan]] 10018370255 ve 923847 numaralı gönderiyi iade etmek istiyorum
+is	llm dosyasını [[PER|selim]] beye ilettim ama o [[PER|selin]] hanıma iletileceğini söyledi
+randevu	yarın sabah [[PER|salih bayramdan]] randevu aldım saat 10a
+tebrik	[[ORG|appleda]] işe başladığın için tebrikler bal
+kurye_tarif	[[ORG|tadımın]] ara sokaktan girip sağa dön biraz ilerle sağdan ilk bina nergis apt.
+form	[[PER|derya kaplan]] [[LOC|adana]] [[LOC|ceyhan]] [[LOC|istiklal mahallesi]] çınar apartmanı
+gundelik	bugün çok yoruldum sabahtan akşama kadar ders vardı çok sıkıcı
