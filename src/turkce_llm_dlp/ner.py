@@ -108,7 +108,7 @@ def _create_local_predictor(model_dir: str, device: int):
         "token-classification",
         model=model,
         tokenizer=tokenizer,
-        aggregation_strategy="simple",
+        aggregation_strategy="first",  # eğitimdeki ilk alt sözcük etiketlemesiyle aynı; sözcük ortadan bölünmez
         stride=64,
         device=device,
     )
