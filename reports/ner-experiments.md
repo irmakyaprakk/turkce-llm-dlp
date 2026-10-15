@@ -100,3 +100,22 @@ Geliştirme setinde tür bazında (son işlemli): kişi 0,958 · yer 0,974 · ad
 \* Kurallar bu setin hatalarına bakılarak geliştirildi; iyimser.
 
 Sonraki düzeltme: modelin ürettiği numarasız/sözcüksüz adres parçaları (": 5", "blok") anotasyon kuralına aykırıdır; `plausible_address` filtresi bunları eler (oracle testinde hiçbir altın adres elenmez). Kalan ana zayıflık kurum: marka adları (Getir, AWS, Sahibinden, Iyzico) ve alt birim sınırları. Geliştirme setindeki markaları bir sözlüğe eklemek test setine göre ayar olacağından yapılmadı; v3 verisi bu türü hedefler.
+
+## Deney 4 — `augmented_v3_seed42`
+
+Geliştirme seti, üretim boru hattı (model + kural):
+
+| | v2 | v3 |
+|---|---|---|
+| Genel F1 | 0,923 | **0,938** |
+| Precision | 0,914 | **0,930** |
+| Adres | 0,976 | **1,000** |
+| Kurum | 0,803 | **0,844** |
+| Kişi | 0,958 | **0,979** |
+| Yer | 0,974 | 0,927 |
+| Token kapsama | 0,993 | 0,991 |
+| WikiNER (katı) | 0,875 | 0,861 |
+
+Yalnız model (kuralsız) v3: genel 0,933, adres 0,976. Eklenen negatifler kod/İngilizce/kısaltma yanlış alarmlarını giderdi; marka adları (Getir, Sahibinden, Iyzico) artık bulunuyor. Gerileme: yer kesinliği — şehir adı içeren kurum adlarında ("Antalya Kurumlar Vergi Dairesi", "İstanbul Anadolu 7. İş Mahkemesi") şehir ayrı LOCATION olarak ayrılıyor (tür hatası, sızıntı değil); WikiNER'de 1,4 puan düşüş (alan uyarlaması ödünleşimi). Tek seed ve 159 cümle: 1–2 puanlık farklar gürültü içinde olabilir; final karşılaştırma 3 seed ile yapılacak.
+
+Son işlem eki: sözcük içermeyen kişi/kurum/yer span'ları ("No : 5") `has_name_word` ile elenir (oracle testinde kayıp yok).

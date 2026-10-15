@@ -341,6 +341,21 @@ def plausible_address(value: str) -> bool:
     return has_digit and len(words) >= 1 and len(value.strip()) >= 6
 
 
+_NUMBER_WORDS = frozenset({"no", "numara", "nu", "kat", "daire"})
+
+
+def has_name_word(value: str) -> bool:
+    """Kişi/kurum/yer span'ı en az bir gerçek sözcük içermeli ("No : 5" gibi parçalar elenir)."""
+    for word in value.split():
+        letters = "".join(char for char in word if char.isalpha())
+        digits = sum(char.isdigit() for char in word)
+        if letters.casefold() in _NUMBER_WORDS:
+            continue
+        if len(letters) >= 2 or (letters and digits >= 2):  # "A101" gibi marka kodları
+            return True
+    return False
+
+
 class DetectionPipeline:
     """Combine deterministic rule matches with optional NER recognizers."""
 
@@ -386,6 +401,8 @@ class DetectionPipeline:
                     raise ValueError("NER tanıyıcısı metin sınırları dışında offset döndürdü.")
                 item = Detection(kind, span.start, span.end, text[span.start : span.end])
                 if kind == "ADDRESS" and not plausible_address(item.value):
+                    continue
+                if kind != "ADDRESS" and not has_name_word(item.value):
                     continue
                 if kind in priority_types:
                     authoritative.append(item)

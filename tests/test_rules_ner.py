@@ -89,3 +89,10 @@ def test_implausible_model_address_fragments_are_dropped():
             return [EntitySpan("ADDRESS", 4, 7), EntitySpan("ADDRESS", text.index("blok"), text.index("blok") + 4)]
 
     assert DetectionPipeline([Model()]).detect(text) == []
+
+
+def test_non_address_entities_need_a_real_word():
+    from turkce_llm_dlp.ner import has_name_word
+
+    assert has_name_word("Ali") and has_name_word("ODTÜ") and has_name_word("A101")
+    assert not has_name_word("No : 5") and not has_name_word("7") and not has_name_word(":")
