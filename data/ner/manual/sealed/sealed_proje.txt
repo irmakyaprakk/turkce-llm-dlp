@@ -12,7 +12,7 @@ emlak	Adres: [[ADRES|Kemalpaşa Mah. 1203 Sk. No:6/4 Bornova İzmir]] – öğre
 sms	Sayın [[PER|BERRİN ÇAKAN]], kartınızdan 1.250,00 TL harcama yapılmıştır. [[ORG|Kuveyt Türk]]
 sms	Gönderiniz [[ADRES|Ostim OSB Mah. 1172. Cad. No:28 Yenimahalle/Ankara]] adresine teslim edildi. Teslim alan: [[PER|Hüsnü K.]]
 sms	[[ORG|Türk Telekom]] faturanız 412,30 TL. Son ödeme 25.10.2026.
-sms	Randevunuz [[ORG|Kartal Dr. Lütfi Kırdar Şehir Hastanesi]] Göz Polikliniği, 18.11.2026 10:40.
+sms	Randevunuz [[ORG|Kartal Dr. Lütfi Kırdar Şehir Hastanesi Göz Polikliniği]], 18.11.2026 10:40.
 sms	Değerli müşterimiz, şifrenizi kimseyle paylaşmayınız. Kod: 482913
 
 # --- toplantı tutanağı / iş yazışması ---

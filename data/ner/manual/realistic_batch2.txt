@@ -7,7 +7,7 @@
 uzun_eposta	Merhaba [[PER|Tülin]] Hanım,\nGeçen hafta konuştuğumuz konuyla ilgili [[ORG|Kayalar Mermer]] tarafında bir gelişme oldu. [[PER|Nevzat Erbil]] beyle görüştüm, numuneleri [[ADRES|Organize Sanayi Bölgesi 4. Cadde No:17 Kocasinan/Kayseri]] adresindeki depodan alabileceğimizi söyledi. Bu arada fatura bilgileri değişmiş, yeni unvan [[ORG|Kayalar Mermer İnşaat Ltd. Şti.]] olacak.\nİyi çalışmalar
 uzun_eposta	Selamlar,\nToplantıya [[ORG|Nehir Gıda]] adına [[PER|Remzi Kalkan]] ve [[PER|Feride Soylu]] katılacak. Lokasyon değişti: artık [[LOC|Ataşehir]] ofisinde değil, [[ADRES|Barbaros Mah. Begonya Sk. No:3 Kat:5 Ataşehir/İstanbul]] adresinde toplanıyoruz. Otopark yok, toplu taşıma önerilir.
 uzun_eposta	[[PER|Nuray]] merhaba, bir önceki mailde yanlış adres paylaşmışım kusura bakma. Doğrusu [[ADRES|Fevzipaşa Bulvarı No:142 Kat:3 Konak İzmir]], eski adres [[ADRES|Alsancak 1442 Sokak No:9]] idi. [[ORG|Ege Liman İşletmeleri]] sözleşmesi de ekte.
-uzun_eposta	Sayın [[PER|Sezgin Güven]],\n[[ORG|Yıldız Teknik Üniversitesi]] Makine Fakültesi bünyesindeki projeniz için talep ettiğiniz belgeler hazırlanmıştır. Belgeleri şahsen teslim almak isterseniz [[LOC|Beşiktaş]] kampüsündeki ofisimize uğrayabilirsiniz.\nSaygılarımızla,\nDoç. Dr. [[PER|Melike Tezcan]]
+uzun_eposta	Sayın [[PER|Sezgin Güven]],\n[[ORG|Yıldız Teknik Üniversitesi Makine Fakültesi]] bünyesindeki projeniz için talep ettiğiniz belgeler hazırlanmıştır. Belgeleri şahsen teslim almak isterseniz [[LOC|Beşiktaş]] kampüsündeki ofisimize uğrayabilirsiniz.\nSaygılarımızla,\nDoç. Dr. [[PER|Melike Tezcan]]
 uzun_eposta	Hi team, quick update: [[ORG|Papara]] entegrasyonu bu sprintte bitmiyor. [[PER|Berkay]] is on leave, [[PER|Ilgın Oral]] will cover. Müşteri tarafında contact person [[PER|Yiğit Akbulut]], ofisleri [[LOC|Maslak]]'ta.
 
 # --- WhatsApp / kısa mesaj, yazım hatalı ---
@@ -48,7 +48,7 @@ karisik_dil	Client [[ORG|Ülker]] wants the report by Friday, [[LOC|Ankara]] eki
 # --- form / CV ---
 form	Ad: [[PER|Gülşen]]\nSoyad: [[PER|Toprak]]\nİkametgah: [[ADRES|Hürriyet Mah. 6018 Sk. No:24 Bağlar/Diyarbakır]]\nMeslek: Hemşire
 form	Başvuran: [[PER|Ferhat Ilıcak]] | Kurum: [[ORG|Çukurova Elektrik]] | Şehir: [[LOC|Adana]]
-cv	Deneyim: 2021–2024 [[ORG|Netaş]], Yazılım Mühendisi. 2019–2021 [[ORG|Logo Yazılım]], Stajyer. Eğitim: [[ORG|İstanbul Üniversitesi]] Bilgisayar Mühendisliği.
+cv	Deneyim: 2021–2024 [[ORG|Netaş]], Yazılım Mühendisi. 2019–2021 [[ORG|Logo Yazılım]], Stajyer. Eğitim: [[ORG|İstanbul Üniversitesi Bilgisayar Mühendisliği]].
 cv	Referans: [[PER|Selçuk Karaca]], Proje Müdürü, [[ORG|Havelsan]]
 form	Veli adı soyadı: [[PER|Tülay Yazıcı]]\nÖğrencinin okulu: [[ORG|Atatürk Anadolu Lisesi]]\nAdres: [[ADRES|Bahçelievler Mah. Okul Cad. No:3/5 Merkez Kırıkkale]]
 

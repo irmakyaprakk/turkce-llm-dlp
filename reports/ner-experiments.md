@@ -119,3 +119,11 @@ Geliştirme seti, üretim boru hattı (model + kural):
 Yalnız model (kuralsız) v3: genel 0,933, adres 0,976. Eklenen negatifler kod/İngilizce/kısaltma yanlış alarmlarını giderdi; marka adları (Getir, Sahibinden, Iyzico) artık bulunuyor. Gerileme: yer kesinliği — şehir adı içeren kurum adlarında ("Antalya Kurumlar Vergi Dairesi", "İstanbul Anadolu 7. İş Mahkemesi") şehir ayrı LOCATION olarak ayrılıyor (tür hatası, sızıntı değil); WikiNER'de 1,4 puan düşüş (alan uyarlaması ödünleşimi). Tek seed ve 159 cümle: 1–2 puanlık farklar gürültü içinde olabilir; final karşılaştırma 3 seed ile yapılacak.
 
 Son işlem eki: sözcük içermeyen kişi/kurum/yer span'ları ("No : 5") `has_name_word` ile elenir (oracle testinde kayıp yok).
+
+## Kurum sınırları: anotasyon kuralı ve son işlem
+
+**Karar:** Kurum adı büyük harfle yazılmış alt birimiyle birlikte geçtiğinde tamamı tek ORG'dur ("Yıldız Teknik Üniversitesi Makine Fakültesi"); kurum adının içindeki şehir ayrı LOC yapılmaz ("Antalya Kurumlar Vergi Dairesi"). Gerekçe: alt birim de tanımlayıcıdır ve DLP açısından tek placeholder ile maskelenmesi bağlamı daha iyi korur. Kural `ANNOTATION_RULES.md`'ye eklendi; geliştirme setinde 4, mühürlü sette 1 etiket bu kurala göre güncellendi (mühürlü sette model sonucuna bakılmadan, yalnız kural tutarlılığı için).
+
+**Son işlem (`merge_org_compounds`):** (1) boşlukla bitişik "şehir + kurumsal sözcükle biten kurum" tek ORG olur; ek almış yer adı ("Ankara'da") birleşmez; (2) ORG'dan sonra gelen, büyük harfli ve kurumsal bir sözcükle (Fakültesi, Müdürlüğü, Polikliniği, Bölümü…) biten ifade ORG'a katılır. Oracle testinde kayıp yok.
+
+**Bilinen, ele alınmayan:** "Hazine ve Maliye Bakanlığı" gibi bağlaçlı adlar; geliştirme setindeki marka adlarını (AWS, Notion) sözlüğe eklemek test setine göre ayar olacağından yapılmadı — bağımsız kaynaklı kurum sözlüğü gelecek iş.

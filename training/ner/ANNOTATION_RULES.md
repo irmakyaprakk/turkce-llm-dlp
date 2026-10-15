@@ -19,6 +19,8 @@ Varlıklar `[[ETİKET|metin]]` biçiminde gösterilir. Kullanılan görünen eti
 | `Adres:` gibi açıklayıcı giriş sözü | Span dışında bırak |
 | Telefon ve e-posta | NER etiketleri dışında; kural katmanına bırak |
 | Adresle aynı cümledeki kurum adı | Kurumu `ORG`, adresi ayrı `ADRES` span'ı yap; span'lar iç içe olmasın |
+| Kurum adı + büyük harfle yazılmış alt birim ("Yıldız Teknik Üniversitesi Makine Fakültesi", "Kadıköy Belediyesi Fen İşleri Müdürlüğü") | Alt birim dahil tamamı tek `ORG` (alt birim de tanımlayıcıdır; tek placeholder ile maskelenir). Küçük harfle yazılmış genel ifade ("kardiyoloji polikliniğine") dahil edilmez |
+| Kurum adının içindeki şehir/ilçe ("Antalya Kurumlar Vergi Dairesi", "Sosyal Güvenlik Kurumu Konya İl Müdürlüğü") | Ayrı `LOC` yapılmaz; tamamı tek `ORG` |
 | `Dr.`, `Sayın`, `Bey` gibi hitap/unvan | Dışarıda bırak; yalnızca kişi adını `PER` işaretle |
 
 Kesme işaretinden sonraki ek varlık span'ına girmez. Örneğin `[[LOC|Kadıköy]]'deki` ve `[[ADRES|... No:5]]'e`.

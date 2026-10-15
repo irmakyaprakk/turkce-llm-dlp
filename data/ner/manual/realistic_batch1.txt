@@ -39,8 +39,8 @@ destek	Mağazanızın [[LOC|İstinye]] şubesinde çalışan [[PER|Kaan]] isimli
 destek	iade kodunu [[PER|Sevda Tunç]] adına oluşturdunuz ama ben [[PER|Sevda Tunç Aksoy]] olarak kayıtlıyım
 
 # --- resmi yazışma ---
-resmi	[[ORG|Kadıköy Belediyesi]] Fen İşleri Müdürlüğü'ne,\n[[ADRES|Caferağa Mah. Moda Cad. No:112 Kadıköy/İstanbul]] adresindeki yapı ruhsatı hakkında bilgi talep ederim.
-resmi	İlgi: [[ORG|Sosyal Güvenlik Kurumu]] [[LOC|Konya]] İl Müdürlüğü'nün 12.09.2026 tarihli yazısı.
+resmi	[[ORG|Kadıköy Belediyesi Fen İşleri Müdürlüğü]]'ne,\n[[ADRES|Caferağa Mah. Moda Cad. No:112 Kadıköy/İstanbul]] adresindeki yapı ruhsatı hakkında bilgi talep ederim.
+resmi	İlgi: [[ORG|Sosyal Güvenlik Kurumu Konya İl Müdürlüğü]]'nün 12.09.2026 tarihli yazısı.
 resmi	Şirketimiz çalışanı [[PER|Murat Öztürk]]'ün [[ORG|Gazi Üniversitesi Hastanesi]]'ndeki tedavi süreci boyunca izinli sayılması rica olunur.
 resmi	Tebligat adresi: [[ADRES|Kocatepe Mah. Mithatpaşa Cad. No:31/5 06420 Çankaya/Ankara]]
 resmi	[[ORG|Ankara 4. Asliye Ticaret Mahkemesi]] 2026/412 E. sayılı dosyada davacı [[PER|Levent Kılıç]] vekili olarak beyanda bulunuyoruz.

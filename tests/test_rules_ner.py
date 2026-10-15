@@ -61,7 +61,8 @@ def test_pipeline_precedence_rule_address_wins_model_org_wins():
             ]
 
     found = [(d.type, d.value) for d in DetectionPipeline([RuleEntityRecognizer(), Model()]).detect(text)]
-    assert ("ORG", "Kadıköy Belediyesi") in found  # kural ORG'u daha uzun ama model öncelikli
+    # Model "Kadıköy Belediyesi" buldu; anotasyon kuralı gereği alt birim de kuruma katılır.
+    assert ("ORG", "Kadıköy Belediyesi Fen İşleri Müdürlüğü") in found
     assert ("ADDRESS", "karsiyaka mah 5011 sk no 12 trabzon") in found  # adreste kural öncelikli
 
 
@@ -96,3 +97,37 @@ def test_non_address_entities_need_a_real_word():
 
     assert has_name_word("Ali") and has_name_word("ODTÜ") and has_name_word("A101")
     assert not has_name_word("No : 5") and not has_name_word("7") and not has_name_word(":")
+
+
+def test_org_compounds_city_prefix_and_subunit_are_merged():
+    from turkce_llm_dlp.ner import DetectionPipeline, EntitySpan
+
+    def run(text, spans):
+        class Model:
+            def recognize(self, _text):
+                return [EntitySpan(k, text.index(v), text.index(v) + len(v)) for k, v in spans]
+
+        return [(d.type, d.value) for d in DetectionPipeline([Model()]).detect(text)]
+
+    assert run(
+        "Fatura Antalya Kurumlar Vergi Dairesi adına kesildi.",
+        [("LOCATION", "Antalya"), ("ORG", "Kurumlar Vergi Dairesi")],
+    ) == [("ORG", "Antalya Kurumlar Vergi Dairesi")]
+    assert run(
+        "Yıldız Teknik Üniversitesi Makine Fakültesi bünyesinde",
+        [("ORG", "Yıldız Teknik Üniversitesi")],
+    ) == [("ORG", "Yıldız Teknik Üniversitesi Makine Fakültesi")]
+    assert run(
+        "İlgi: Sosyal Güvenlik Kurumu Konya İl Müdürlüğü'nün yazısı.",
+        [("ORG", "Sosyal Güvenlik Kurumu"), ("LOCATION", "Konya")],
+    ) == [("ORG", "Sosyal Güvenlik Kurumu Konya İl Müdürlüğü")]
+    # Kurumsal sözcükle bitmeyen devam birleştirilmez; şehir + marka da birleşmez.
+    assert run("Ankara'da Ankara Ticaret Odası", [("LOCATION", "Ankara'da"), ("ORG", "Ankara Ticaret Odası")]) == [
+        ("LOCATION", "Ankara'da"),
+        ("ORG", "Ankara Ticaret Odası"),
+    ]
+    assert run("Ankara Getir deposu", [("LOCATION", "Ankara"), ("ORG", "Getir")]) == [
+        ("LOCATION", "Ankara"),
+        ("ORG", "Getir"),
+    ]
+    assert run("Aras Kargo şubesi kapalı", [("ORG", "Aras Kargo")]) == [("ORG", "Aras Kargo")]

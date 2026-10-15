@@ -10,6 +10,7 @@ import atexit
 import logging
 import math
 import multiprocessing
+import re
 import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -356,6 +357,85 @@ def has_name_word(value: str) -> bool:
     return False
 
 
+_TR_FOLD = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
+# Kurumsal baş sözcükler ve alt birim sözcükleri (anotasyon kuralı: alt birim dahil tek ORG).
+INSTITUTION_HEADS = frozenset(
+    "holding bankasi universitesi hastanesi belediyesi bakanligi mudurlugu baskanligi kurumu kurulu dernegi "
+    "vakfi odasi borsasi mahkemesi savciligi valiligi kaymakamligi lisesi koleji fakultesi enstitusu sirketi "
+    "kooperatifi federasyonu sendikasi ajansi dairesi merkezi akademisi poliklinigi klinigi bolumu muhendisligi "
+    "subesi birimi servisi dekanligi rektorlugu laboratuvari adliyesi".split()
+)
+_WORD_RE = re.compile(r"\w+(?:['’]\w+)*|[^\w\s]")
+
+
+def _head_key(word: str) -> str:
+    base = re.split(r"['’]", word, maxsplit=1)[0]
+    return base.replace("İ", "i").replace("I", "ı").lower().translate(_TR_FOLD)
+
+
+def _ends_with_head(value: str) -> bool:
+    words = value.split()
+    return bool(words) and _head_key(words[-1]) in INSTITUTION_HEADS
+
+
+def merge_org_compounds(text: str, detections: list[Detection]) -> list[Detection]:
+    """Kurum adlarını anotasyon kuralına göre bütünler.
+
+    1. Şehir + kurum: "Antalya" (LOC) + "Kurumlar Vergi Dairesi" (ORG) → tek ORG.
+    2. Kurum + alt birim: ORG'dan sonra büyük harfle yazılmış ve kurumsal bir sözcükle biten
+       ifade ("… Üniversitesi" + "Makine Fakültesi"), arada yer adı olsa bile → tek ORG.
+    Yalnızca boşlukla ayrılmış bitişik parçalar birleşir; başka türdeki tespitler korunur.
+    """
+    items = sorted(detections, key=lambda d: d.start)
+    changed = True
+    while changed:
+        changed = False
+        for i, item in enumerate(items):
+            if item.type != "ORG":
+                continue
+            # (1) önceki LOC'u yut
+            prev_loc = items[i - 1] if i > 0 else None
+            if (
+                prev_loc is not None
+                and prev_loc.type == "LOCATION"
+                and not re.search(r"['’]", prev_loc.value)  # "Ankara'da Ankara Ticaret Odası" birleşmez
+                and text[prev_loc.end : item.start] == " "
+            ):
+                if _ends_with_head(item.value):
+                    prev = items[i - 1]
+                    items[i - 1 : i + 1] = [Detection("ORG", prev.start, item.end, text[prev.start : item.end])]
+                    changed = True
+                    break
+            # (2) ardından gelen alt birimi ekle
+            tail = text[item.end :]
+            if tail.startswith(("'", "’")):
+                continue
+            cursor = item.end
+            last_head_end = None
+            for match in _WORD_RE.finditer(tail):
+                word = match.group()
+                start = item.end + match.start()
+                gap = text[cursor:start]
+                if gap.strip() or "\n" in gap:
+                    break
+                if not (word[:1].isupper() or word.isdigit() or word == "."):
+                    break
+                cursor = start + len(re.split(r"['’]", word, maxsplit=1)[0])
+                if _head_key(word) in INSTITUTION_HEADS:
+                    last_head_end = cursor
+                if "'" in word or "’" in word:
+                    break
+            if last_head_end is not None:
+                covered = [d for d in items if d is not item and d.start >= item.end and d.end <= last_head_end]
+                if all(d.type in ("LOCATION", "ORG") for d in covered):
+                    merged = Detection("ORG", item.start, last_head_end, text[item.start : last_head_end])
+                    items = [d for d in items if d is not item and d not in covered] + [merged]
+                    items.sort(key=lambda d: d.start)
+                    changed = True
+                    break
+    return items
+
+
 class DetectionPipeline:
     """Combine deterministic rule matches with optional NER recognizers."""
 
@@ -419,4 +499,8 @@ class DetectionPipeline:
         for item in ordered:
             if not any(item.start < prior.end and item.end > prior.start for prior in selected):
                 selected.append(item)
-        return sorted(selected, key=lambda d: d.start)
+        ner_items = [d for d in selected if d not in rules]
+        merged = merge_org_compounds(text, ner_items)
+        # Birleştirme deterministik kural tespitleriyle (TCKN/IBAN...) çakışamaz.
+        merged = [d for d in merged if not any(d.start < r.end and d.end > r.start for r in rules)]
+        return sorted([*rules, *merged], key=lambda d: d.start)
