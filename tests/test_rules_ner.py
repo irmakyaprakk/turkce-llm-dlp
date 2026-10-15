@@ -73,3 +73,19 @@ def test_rule_org_fills_gap_when_model_finds_nothing():
         for d in DetectionPipeline([RuleEntityRecognizer()]).detect("Ekte Toros Kimya A.Ş. teklifi var.")
     ]
     assert found == [("ORG", "Toros Kimya A.Ş.")]
+
+
+def test_implausible_model_address_fragments_are_dropped():
+    from turkce_llm_dlp.ner import DetectionPipeline, EntitySpan, plausible_address
+
+    assert plausible_address("Lale Sk. No:5")
+    assert plausible_address("kazım karabekir mah 1234 sk no 6")
+    assert not plausible_address(": 5")
+    assert not plausible_address("blok")
+    text = "Kat : 5 , C blok girişi"
+
+    class Model:
+        def recognize(self, _text):
+            return [EntitySpan("ADDRESS", 4, 7), EntitySpan("ADDRESS", text.index("blok"), text.index("blok") + 4)]
+
+    assert DetectionPipeline([Model()]).detect(text) == []

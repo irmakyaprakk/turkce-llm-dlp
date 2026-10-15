@@ -331,6 +331,16 @@ def trim_address_span(text: str, span: EntitySpan) -> EntitySpan:
     return EntitySpan(span.type, start, end) if end > start else span
 
 
+def plausible_address(value: str) -> bool:
+    """Anotasyon kuralı: açık adres numara (kapı/daire/kat) ve en az bir sözcük içerir.
+
+    Modelin ürettiği ": 5" ya da "blok" gibi parçalar bu koşulu sağlamaz ve elenir.
+    """
+    has_digit = any(char.isdigit() for char in value)
+    words = [w for w in value.replace("/", " ").split() if sum(c.isalpha() for c in w) >= 2]
+    return has_digit and len(words) >= 1 and len(value.strip()) >= 6
+
+
 class DetectionPipeline:
     """Combine deterministic rule matches with optional NER recognizers."""
 
@@ -375,6 +385,8 @@ class DetectionPipeline:
                 if not (0 <= span.start < span.end <= len(text)):
                     raise ValueError("NER tanıyıcısı metin sınırları dışında offset döndürdü.")
                 item = Detection(kind, span.start, span.end, text[span.start : span.end])
+                if kind == "ADDRESS" and not plausible_address(item.value):
+                    continue
                 if kind in priority_types:
                     authoritative.append(item)
                 elif kind in fallback_types:

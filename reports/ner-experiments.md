@@ -85,3 +85,18 @@ Geliştirme setinde tür bazında (son işlemli): kişi 0,958 · yer 0,974 · ad
 3. **Yanlış alarmlar:** SQL/kod anahtar sözcükleri, İngilizce gün adları, "İK" gibi birim kısaltmaları, büyük harfli cümleler → v3'e 22 yeni negatif çerçeve eklendi.
 4. **Etiket hatası:** geliştirme setinde "Merkez Bankası" zor negatif yazılmıştı; gerçek kurum olduğu için ORG olarak düzeltildi.
 5. **Bilinen belirsizlik:** kurum + alt birim ("… Üniversitesi Makine Fakültesi", "… Belediyesi Fen İşleri Müdürlüğü") sınırları; anotasyon kuralı yalnız ana kurumu etiketler. Kapsamayı etkilemez.
+
+### Deney 3 — üretimle birebir ölçüm (DetectionPipeline, geliştirme seti 159 cümle)
+
+| | Yalnız model | Yalnız kural | **Model + kural** |
+|---|---|---|---|
+| Genel F1 | 0,915 | 0,404 | **0,923** |
+| Adres F1 | 0,929 | 1,000* | **0,976** |
+| Kurum F1 | 0,803 | 0,460 | 0,803 |
+| Kişi / Yer F1 | 0,958 / 0,974 | – | 0,958 / 0,974 |
+| Precision (genel) | 0,905 | 0,953 | 0,914 |
+| Token kapsama | 0,993 | 0,694 | 0,993 |
+
+\* Kurallar bu setin hatalarına bakılarak geliştirildi; iyimser.
+
+Sonraki düzeltme: modelin ürettiği numarasız/sözcüksüz adres parçaları (": 5", "blok") anotasyon kuralına aykırıdır; `plausible_address` filtresi bunları eler (oracle testinde hiçbir altın adres elenmez). Kalan ana zayıflık kurum: marka adları (Getir, AWS, Sahibinden, Iyzico) ve alt birim sınırları. Geliştirme setindeki markaları bir sözlüğe eklemek test setine göre ayar olacağından yapılmadı; v3 verisi bu türü hedefler.
