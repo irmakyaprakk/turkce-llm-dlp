@@ -1,4 +1,5 @@
 # Türkçe Kurumsal LLM DLP
+[![CI](https://github.com/irmakyaprakk/turkce-llm-dlp/actions/workflows/ci.yml/badge.svg)](https://github.com/irmakyaprakk/turkce-llm-dlp/actions/workflows/ci.yml)
 
 Türkçe kurumsal LLM DLP prototipi. Tespit, istek kapsamlı maskeleme/geri eşleme, politika, FastAPI ve OpenAI uyumlu sağlayıcı adaptörü vardır. Gerçek sağlayıcı varsayılan olarak kapalıdır. ChatGPT/Claude için Manifest V3 eklentisinin ilk sürümü `extension/` altındadır; gerçek web arayüzüyle manuel doğrulaması henüz yapılmadı. Türkçe NER modeli, kalıcı audit ve belge/OCR modülleri henüz hazır değildir.
 
