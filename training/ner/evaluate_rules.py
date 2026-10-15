@@ -129,6 +129,15 @@ def main() -> None:
         hybrid = DetectionPipeline([RuleEntityRecognizer(), replay])
         hybrid_tags = [pipeline_tags(hybrid, r) for r in rows]
         result["pipeline_model_plus_rules"] = pipeline_report(gold, hybrid_tags)
+        # Yazar grubuna / partiye göre (mühürlü testte her dosya bir yazar grubudur)
+        batches = sorted({r.get("batch") for r in rows if r.get("batch")})
+        result["pipeline_model_plus_rules_by_batch"] = {
+            name: pipeline_report(
+                [g for g, r in zip(gold, rows) if r.get("batch") == name],
+                [t for t, r in zip(hybrid_tags, rows) if r.get("batch") == name],
+            )
+            for name in batches
+        }
         if args.show_errors:
             for r, g, p in zip(rows, gold, hybrid_tags):
                 for kind, s, e in sorted(set(entity_spans(g)) - set(entity_spans(p))):

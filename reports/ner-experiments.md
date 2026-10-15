@@ -127,3 +127,18 @@ Son işlem eki: sözcük içermeyen kişi/kurum/yer span'ları ("No : 5") `has_n
 **Son işlem (`merge_org_compounds`):** (1) boşlukla bitişik "şehir + kurumsal sözcükle biten kurum" tek ORG olur; ek almış yer adı ("Ankara'da") birleşmez; (2) ORG'dan sonra gelen, büyük harfli ve kurumsal bir sözcükle (Fakültesi, Müdürlüğü, Polikliniği, Bölümü…) biten ifade ORG'a katılır. Oracle testinde kayıp yok.
 
 **Bilinen, ele alınmayan:** "Hazine ve Maliye Bakanlığı" gibi bağlaçlı adlar; geliştirme setindeki marka adlarını (AWS, Notion) sözlüğe eklemek test setine göre ayar olacağından yapılmadı — bağımsız kaynaklı kurum sözlüğü gelecek iş.
+
+## Deney 5 — model karşılaştırması: TurkishBERTweet (`bertweet_v3_seed42`)
+
+Aynı veri (augmented-v3), aynı eğitim ayarları; yalnız temel model `VRLLab/TurkishBERTweet` (max_length 128).
+
+| Geliştirme seti (model + kural) | BERTurk v3 | TurkishBERTweet v3 |
+|---|---|---|
+| Genel F1 | **0,940** | 0,787 |
+| Precision | **0,934** | 0,747 |
+| Token kapsama | **0,991** | 0,984 |
+| WikiNER (katı) | **0,861** | 0,742 |
+
+Hata listesi büyük harfle başlayan sıradan sözcükleri varlık sanan bir model gösteriyor ("Yarın", "Maaş", "Hemşire", "IBAN"). Olası nedenler: model küçük harfe çeviren tweet ön işlemesiyle ön-eğitilmiş, biz büyük/küçük harf korunmuş metin verdik (büyük harf NER'in en güçlü ipuçlarından); 128 token sınırı; hiperparametreler BERTurk için seçildi. Sonuç: bu kurulumda BERTurk açıkça üstün; TurkishBERTweet hakkında genel bir yargı değildir. Ek ayar eğitimleri yapılmadı.
+
+**Final yapılandırma kararı:** BERTurk (`dbmdz/bert-base-turkish-cased`) + augmented-v3 + kural katmanı + son işlem. 3 seed (42, 43, 44) ile eğitilip mühürlü testte bir kez ölçülecek (`colab_train_eval.ipynb`, hücre 8).
