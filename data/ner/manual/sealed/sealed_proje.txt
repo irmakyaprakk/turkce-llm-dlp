@@ -1,0 +1,77 @@
+# MÜHÜRLÜ FİNAL TEST — yazar grubu: proje içi. Kurallar: training/ner/ANNOTATION_RULES.md
+# Bu dosyadaki cümleler üzerinde hata analizi, kural/eşik ayarı YAPILMAZ (bkz. docs/evaluation-protocol.md).
+# Tüm ad, kurum, adres ve numaralar uydurmadır.
+
+# --- emlak ilanı ---
+emlak	Sahibinden satılık 3+1 daire: [[ADRES|Güzeltepe Mah. Menekşe Sk. No:19 D:8 Eyüpsultan/İstanbul]]. Bilgi için [[PER|Recai Durukan]].
+emlak	Kiralık dükkan, [[LOC|Antakya]] merkezde, [[ORG|Defne Emlak]] güvencesiyle.
+emlak	[[LOC|Mudanya]] sahilde yazlık, havuzlu site içinde, aylık ödeme seçeneği var.
+emlak	Adres: [[ADRES|Kemalpaşa Mah. 1203 Sk. No:6/4 Bornova İzmir]] – öğrenciye uygun, eşyalı.
+
+# --- banka / kargo / operatör SMS ---
+sms	Sayın [[PER|BERRİN ÇAKAN]], kartınızdan 1.250,00 TL harcama yapılmıştır. [[ORG|Kuveyt Türk]]
+sms	Gönderiniz [[ADRES|Ostim OSB Mah. 1172. Cad. No:28 Yenimahalle/Ankara]] adresine teslim edildi. Teslim alan: [[PER|Hüsnü K.]]
+sms	[[ORG|Türk Telekom]] faturanız 412,30 TL. Son ödeme 25.10.2026.
+sms	Randevunuz [[ORG|Kartal Dr. Lütfi Kırdar Şehir Hastanesi]] Göz Polikliniği, 18.11.2026 10:40.
+sms	Değerli müşterimiz, şifrenizi kimseyle paylaşmayınız. Kod: 482913
+
+# --- toplantı tutanağı / iş yazışması ---
+tutanak	Katılımcılar: [[PER|Nurettin Aslantaş]] ([[ORG|Marmaris Belediyesi]]), [[PER|Gülay Peker]] ([[ORG|Muğla Sıtkı Koçman Üniversitesi]]), [[PER|Ozan Tekeli]].
+tutanak	Alınan kararlar: proje ofisi [[ADRES|Atatürk Bulvarı No:211 Kat:7 Kavaklıdere Çankaya/Ankara]] adresine taşınacak.
+tutanak	Bir sonraki toplantı [[LOC|Eskişehir]]'de, [[ORG|Anadolu Üniversitesi]] kampüsünde yapılacak.
+is	[[PER|Cenk]] Bey, [[ORG|Akdeniz Tarım Kooperatifi]] ile sözleşme taslağını revize ettim, ekte bulabilirsiniz.
+is	Sevkiyat [[LOC|Mersin]] limanından çıkacak, gümrük işlemlerini [[ORG|Taurus Gümrük Müşavirliği]] yürütecek.
+is	Merhaba [[PER|Şeyda]], [[PER|Ahu Karakuş]]'un dosyasını [[ORG|SGK]]'ya ilettik mi?
+is	Yeni depo adresimiz: [[ADRES|Dilovası OSB 4. Cad. No:9 Dilovası/Kocaeli]]. Eski adrese gönderim yapmayın.
+
+# --- sağlık / eğitim / resmi ---
+resmi	Öğrenci [[PER|Kaan Yıldırımkaya]], [[ORG|Bahçeşehir Koleji]]'nden [[ORG|Kadıköy Anadolu Lisesi]]'ne nakil olmuştur.
+resmi	[[ORG|İzmir Adliyesi]] önünde açıklama yapan Av. [[PER|Selin Okur]] dava sürecini anlattı.
+resmi	Hasta yakını [[PER|Mukaddes Er]], iletişim adresi [[ADRES|Sümer Mah. 22. Sokak No:4 Merkezefendi/Denizli]].
+resmi	[[ORG|Nüfus ve Vatandaşlık İşleri Genel Müdürlüğü]] kayıtlarında adres [[LOC|Kırklareli]] olarak görünmektedir.
+resmi	Dilekçe sahibi [[PER|Bayram Gündoğdu]], [[LOC|Siirt]] ili [[LOC|Kurtalan]] ilçesinde ikamet etmektedir.
+
+# --- ürün yorumu / sosyal medya ---
+yorum	[[ORG|Hepsiburada]]'dan aldım, kargo 2 günde geldi ama kutu ezikti.
+yorum	[[ORG|Arçelik]] servisi çok ilgiliydi, teknisyen [[PER|Mesut]] bey sorunu yarım saatte çözdü.
+yorum	bu ürünü [[LOC|izmirdeki]] mağazadan aldım fiyatı internetten pahalıydı
+sosyal	Bugün [[LOC|Kapadokya]]'dayız, balonlar muhteşem 🎈 [[PER|Defne]] ve [[PER|Batu]] ile
+sosyal	[[ORG|Fenerbahçe]] maçı için [[LOC|Kadıköy]]'e erken gidin, metro çok kalabalık
+sosyal	[[PER|zeyno]] ile [[LOC|karaköyde]] kahve içtik çok iyiydi
+sosyal	tebrikler [[PER|Mert Alkan]] 🎉 [[ORG|ODTÜ]] mezuniyeti hayırlı olsun
+
+# --- gündelik mesaj, yazım hatalı ---
+mesaj	anne ben [[PER|tubalara]] gidiyorum adres [[ADRES|bahçelievler mah 3. cad no 41 daire 9 keçiören]]
+mesaj	[[PER|emir]] abi yarın [[ORG|pttye]] uğrayabilir misin paket gelmiş
+mesaj	kurye arıyo adresi bulamıyomuş [[ADRES|yunus emre mh. papatya sk. no:3 karatay]] diye söyle
+mesaj	[[PER|Ceyda]] [[LOC|Ankara]]'ya taşınmış haberin var mıydı
+mesaj	[[PER|Serhat]] [[ORG|Getir]]'de kurye olarak başlamış
+mesaj	akşam [[PER|onurlarda]] film var gelirsen yaz
+
+# --- İngilizce-Türkçe karışık ---
+karisik	Please send the samples to [[ADRES|Kozyatağı Mah. Değirmen Sk. No:16 Kat:4 Kadıköy]], attn: [[PER|Pelin Arıkan]].
+karisik	[[ORG|Turkcell]] ile POC başarılı geçti, [[PER|Tarkan Ersoy]] next step'leri paylaşacak.
+karisik	Our [[LOC|Gaziantep]] team will join the call, [[ORG|Sanko Holding]] tarafı da katılacak.
+
+# --- form / liste / kod ---
+form	Adı Soyadı: [[PER|Nazife Arslantürk]]\nDoğum Yeri: [[LOC|Kastamonu]]\nAdres: [[ADRES|Kuzeykent Mah. Kıyı Cad. No:18 Kastamonu]]
+form	1. [[PER|Halil İbrahim Sezer]] – [[ORG|Ziraat Bankası]]\n2. [[PER|Yasemin Doğru]] – [[ORG|Halkbank]]
+kod	user = {"name": "[[PER|Furkan Demirel]]", "addr": "[[ADRES|Yeşilyurt Mah. Okul Sk. No:2 Tokat]]"}
+kod	# [[PER|Burcu]]: [[ORG|Garanti BBVA]] POS entegrasyonu test ortamında
+
+# --- zor negatifler ---
+zor_negatif	Barışçıl gösteri olaysız sona erdi.
+zor_negatif	Güneşli günler geri döndü.
+zor_negatif	Sevgi bağı güçlü bir aile.
+zor_negatif	Umudunu kaybetme, her şey düzelecek.
+zor_negatif	Deniz ürünleri bu mevsim pahalı.
+zor_negatif	Kurye no: 4, vardiya 08:00–16:00.
+zor_negatif	Daire içi tadilat izni yönetimden alınmalı.
+zor_negatif	Sokak hayvanları için mama kabı koyduk.
+zor_negatif	Cadde boyunca bisiklet yolu yapılıyor.
+zor_negatif	Mahalle sakinleri toplantıda bir araya geldi.
+zor_negatif	Kat karşılığı inşaat sözleşmesi imzalandı.
+zor_negatif	Adres değişikliği için e-Devlet üzerinden başvuru yapılabilir.
+zor_negatif	Merkez ofisin yeni adresi web sitesinde ilan edilecek.
+zor_negatif	Altın ve gümüş fiyatları düştü.
+zor_negatif	Pazartesi günü toplantı yok.

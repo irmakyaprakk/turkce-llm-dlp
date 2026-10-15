@@ -9,3 +9,4 @@ build/
 /data/ner/processed/
 /models/ner/
 .DS_Store
+/* outputs/

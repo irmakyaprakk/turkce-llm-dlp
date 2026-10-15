@@ -72,6 +72,15 @@ def entity_spans(tags: list[str]) -> set[tuple[str, int, int]]:
     return spans
 
 
+def load_tokenizer(auto_tokenizer, name_or_path):
+    """Fast tokenizer yükler; RoBERTa/BPE tabanlı modellerde (ör. TurkishBERTweet) kelime
+    listesiyle çalışabilmek için add_prefix_space=True gerekir."""
+    tokenizer = auto_tokenizer.from_pretrained(name_or_path, use_fast=True)
+    if getattr(tokenizer, "add_prefix_space", None) is False or "roberta" in type(tokenizer).__name__.lower():
+        tokenizer = auto_tokenizer.from_pretrained(name_or_path, use_fast=True, add_prefix_space=True)
+    return tokenizer
+
+
 def span_metrics(
     true_labels: list[list[str]], predicted_labels: list[list[str]], entity_types: list[str]
 ) -> dict[str, float]:
@@ -207,7 +216,7 @@ def main() -> None:
         TrainingArguments,
     ) = load_training_dependencies()
 
-    tokenizer = AutoTokenizer.from_pretrained(args.base_model, use_fast=True)
+    tokenizer = load_tokenizer(AutoTokenizer, args.base_model)
     if not tokenizer.is_fast:
         raise SystemExit("Alt-token/kelime hizalaması için fast tokenizer gereklidir.")
 
@@ -339,6 +348,9 @@ def main() -> None:
         "openstreetmap-tr-restyled": "ODbL-1.0 address records; synthetic formatting",
         "generated-context-v2": "generated locally; ODbL-1.0 address records",
         "generated-negative-v2": "generated locally",
+        "generated-context-v3": "generated locally; ODbL-1.0 address records",
+        "generated-negative-v3": "generated locally",
+        "turkish-wikiNER-mention-swap": "CC-BY-SA-4.0 (derived; entity names replaced)",
     }
     used_sources = sorted({row.get("source", "unknown") for rows in raw_rows.values() for row in rows})
     manifest = {

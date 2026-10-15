@@ -149,3 +149,39 @@ def test_eval_postprocess_keeps_semicolon_separated_addresses_apart():
     tags = ["B-ADDRESS"] + ["I-ADDRESS"] * 6 + ["B-ADDRESS"] + ["I-ADDRESS"] * 5
     expected = ["B-ADDRESS"] + ["I-ADDRESS"] * 5 + ["O", "B-ADDRESS"] + ["I-ADDRESS"] * 5
     assert postprocess(tokens, tags) == expected
+
+
+def test_load_tokenizer_enables_prefix_space_for_roberta_like():
+    from training.ner.train import load_tokenizer
+
+    class FakeRoberta:
+        add_prefix_space = False
+
+        def __init__(self, prefix):
+            self.add_prefix_space = prefix
+
+    class FakeAuto:
+        calls = []
+
+        @classmethod
+        def from_pretrained(cls, name, use_fast=True, add_prefix_space=False):
+            cls.calls.append(add_prefix_space)
+            return FakeRoberta(add_prefix_space)
+
+    tok = load_tokenizer(FakeAuto, "x")
+    assert tok.add_prefix_space is True and FakeAuto.calls == [False, True]
+
+
+def test_replace_mentions_regenerates_suffix_and_skips_common_nouns():
+    from training.ner.prepare_augmented import replace_mentions
+
+    pool = [AddressParts("Lale Sokak", "5", "06000", "Örnek Mahallesi")]
+    filler = Filler(random.Random(3), pool, {"PERSON": set(), "ORG": set(), "LOCATION": set()})
+    row = {
+        "tokens": ["Dün", "Ankara'da", "gençlik", "akademisine", "katıldı", "."],
+        "ner_tags": ["O", "B-LOCATION", "B-ORG", "I-ORG", "O", "O"],
+    }
+    text, spans = replace_mentions(row, filler)
+    loc = next(text[s:e] for s, e, k in spans if k == "LOCATION")
+    assert loc != "Ankara" and text.startswith(f"Dün {loc}'d")
+    assert "gençlik akademisine katıldı" in text  # cins isimli kurum değişmedi

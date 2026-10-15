@@ -33,6 +33,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from training.ner import context_templates as T
+from training.ner import context_templates_v3 as V3
 from training.ner.augment import (
     IL_BY_PLATE,
     AddressParts,
@@ -84,7 +85,8 @@ def load_gold(manual_dir: Path) -> tuple[set[str], set[str], dict[str, set[str]]
     """Altın setin cümle anahtarları, adres anahtarları ve türe göre varlık anahtarları."""
     texts, addresses = set(), set()
     entities: dict[str, set[str]] = {"PERSON": set(), "ORG": set(), "LOCATION": set()}
-    for path in sorted(manual_dir.glob("realistic_*.txt")):
+    # Mühürlü final test de dahil: eğitim verisi ne geliştirme ne final cümlelerini/adlarını içermemeli.
+    for path in sorted([*manual_dir.glob("realistic_*.txt"), *manual_dir.glob("sealed/*.txt")]):
         for raw in path.read_text(encoding="utf-8").splitlines():
             line = raw.strip()
             if not line or line.startswith("#"):
@@ -162,6 +164,8 @@ class Filler:
         if slot == "ADDR":
             return render_address(rng.choice(self.address_pool), rng, self.original_ratio)
         if slot == "STREET":
+            if has_suffix:
+                return rng.choice(self.address_pool).street  # kısaltmasız: "Lale Sokak'ta"
             return street_only(rng.choice(self.address_pool), rng)
         if slot == "MAH":
             for _ in range(50):
@@ -235,6 +239,89 @@ def generate_context(
     return rows
 
 
+_SUFFIX_KINDS = (
+    ("DAN", ("dan", "den", "tan", "ten")),
+    ("DA", ("da", "de", "ta", "te")),
+    ("IN", ("ın", "in", "un", "ün", "nın", "nin", "nun", "nün")),
+    ("LA", ("la", "le", "yla", "yle")),
+    ("E", ("a", "e", "ya", "ye")),
+    ("I", ("ı", "i", "u", "ü", "yı", "yi", "yu", "yü")),
+)
+
+
+def suffix_kind(tail: str) -> str | None:
+    """Kesme işaretinden sonraki eki türüne çevirir ("'nin" → IN); tanınmazsa None."""
+    lowered = tail.lower()
+    for kind, forms in _SUFFIX_KINDS:
+        if lowered in forms:
+            return kind
+    return None
+
+
+def replace_mentions(row: dict, filler: Filler) -> tuple[str, list[tuple[int, int, str]]] | None:
+    """WikiNER satırındaki kişi/kurum/yer adlarını sözlükten yenileriyle değiştirir.
+
+    Kesme işaretli ek ünlü uyumuyla yeniden üretilir ("Ankara'da" → "İzmir'de").
+    Eki tanınmayan varlık değiştirilmeden bırakılır. Değişen varlık yoksa None döner.
+    """
+    slot_for = {"PERSON": "PER", "ORG": "ORG", "LOCATION": "LOC"}
+    parts: list[str] = []
+    spans: list[tuple[int, int, str]] = []
+    length = 0
+    changed = False
+    tokens, tags = row["tokens"], row["ner_tags"]
+    index = 0
+
+    def emit(text: str) -> None:
+        nonlocal length
+        if parts:
+            parts.append(" ")
+            length += 1
+        parts.append(text)
+        length += len(text)
+
+    while index < len(tokens):
+        tag = tags[index]
+        if not tag.startswith("B-"):
+            emit(tokens[index])
+            index += 1
+            continue
+        kind = tag[2:]
+        end = index + 1
+        while end < len(tokens) and tags[end] == f"I-{kind}":
+            end += 1
+        surface = tokens[index:end]
+        head, _, tail = surface[-1].replace("’", "'").partition("'")
+        ek = suffix_kind(tail) if tail else None
+        # Küçük harfle başlayan sözcük içeren varlık ("gençlik akademisine") ek almış cins isimdir;
+        # değiştirilirse kesme işaretsiz ek kaybolur, bu yüzden olduğu gibi bırakılır.
+        proper = all(word[:1].isupper() or not word[:1].isalpha() for word in surface)
+        if kind in slot_for and proper and (not tail or ek):
+            slot = slot_for[kind]
+            if slot == "PER" and len(surface) == 1:
+                slot = "FIRST"
+            value = filler.value(slot, has_suffix=ek is not None)
+            if parts:
+                parts.append(" ")
+                length += 1
+            spans.append((length, length + len(value), kind))
+            parts.append(value)
+            length += len(value)
+            if ek:
+                extra = "'" + suffix(value, ek)
+                parts.append(extra)
+                length += len(extra)
+            changed = True
+        else:
+            start = length + (1 if parts else 0)
+            emit(" ".join(surface))
+            spans.append((start, length, kind))
+        index = end
+    if not changed:
+        return None
+    return "".join(parts), spans
+
+
 def address_pool(path: Path) -> list[AddressParts]:
     pool = [parse_osm_address(row["text"]) for row in read_jsonl(path)]
     return [p for p in pool if p is not None]
@@ -257,6 +344,22 @@ def main() -> None:
         type=float,
         default=0.0,
         help="adreslerin bu oranı OSM ham biçiminde bırakılır (v1: 0.0, v2: 0.15)",
+    )
+    ap.add_argument(
+        "--v3-contexts",
+        type=int,
+        nargs=2,
+        default=(0, 0),
+        metavar=("TRAIN", "DEV"),
+        help="v3 çerçevelerinden üretilecek cümle sayısı (v3: 10000 800)",
+    )
+    ap.add_argument(
+        "--mention-replace",
+        type=int,
+        nargs=2,
+        default=(0, 0),
+        metavar=("TRAIN", "DEV"),
+        help="varlıkları değiştirilmiş WikiNER cümlesi sayısı (v3: 5000 300)",
     )
     args = ap.parse_args()
 
@@ -309,6 +412,28 @@ def main() -> None:
         rows += generate_context(
             negatives, args.negatives[index], filler, rng, "generated-negative-v2", gold_texts, seen
         )
+        # --- v3 ekleri (varsayılan 0: v1/v2 çıktıları değişmez) ---
+        if args.v3_contexts[index]:
+            v3_templates = V3.TRAIN_TEMPLATES_V3 if split == "train" else V3.DEV_TEMPLATES_V3
+            v3_negatives = V3.TRAIN_NEGATIVES_V3 if split == "train" else V3.DEV_NEGATIVES_V3
+            rows += generate_context(
+                v3_templates, args.v3_contexts[index], filler, rng, "generated-context-v3", gold_texts, seen
+            )
+            rows += generate_context(
+                v3_negatives, args.v3_contexts[index] // 8, filler, rng, "generated-negative-v3", gold_texts, seen
+            )
+        if args.mention_replace[index]:
+            sample = rng.sample(with_entities, min(args.mention_replace[index], len(with_entities)))
+            for i, base in enumerate(sample):
+                replaced = replace_mentions(base, filler)
+                if replaced is None:
+                    continue
+                row = make_row(
+                    f"{base['id']}-swap{i}", "turkish-wikiNER-mention-swap", *replaced, weighted(rng, CONTEXT_VARIANTS)
+                )
+                if key(row["text"]) in gold_texts:
+                    continue
+                rows.append(row)
         rng.shuffle(rows)
         splits[split] = rows
 
@@ -333,6 +458,8 @@ def main() -> None:
         "schema_version": 1,
         "seed": args.seed,
         "osm_original_ratio": args.osm_original_ratio,
+        "v3_contexts": list(args.v3_contexts),
+        "mention_replace": list(args.mention_replace),
         "rows": {s: len(r) for s, r in splits.items()},
         "sources": {s: dict(Counter(r["source"] for r in rows)) for s, rows in splits.items()},
         "variants": {s: dict(Counter(r.get("variant", "orig") for r in rows)) for s, rows in splits.items()},
@@ -362,6 +489,9 @@ def main() -> None:
             "openstreetmap-tr-restyled": "ODbL-1.0 (adres kayıtları; biçim ve daire/kat sentetik)",
             "generated-context-v2": "yerel üretim; adresler ODbL-1.0",
             "generated-negative-v2": "yerel üretim",
+            "generated-context-v3": "yerel üretim; adresler ODbL-1.0",
+            "generated-negative-v3": "yerel üretim",
+            "turkish-wikiNER-mention-swap": "CC-BY-SA-4.0 (türetilmiş; varlık adları değiştirildi)",
         },
         "note": "Bağlam cümleleri yapaydır; gerçek kullanıcı başarısı yalnızca altın test setiyle ölçülür.",
     }

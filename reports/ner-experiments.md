@@ -45,3 +45,25 @@ Veri: `augmented-v1` (bkz. `docs/data-augmentation.md`). Diğer her şey Deney 1
 | Altın set (1. parti) | 0,935 | 0,929* | 0,994 |
 
 \* Bu ölçümde son işlem önce birleştirip sonra kırpıyordu; model ilk adresin sonuna `;` kattığında noktalı virgülle ayrılmış iki adres birleşti (altın sette adres F1 0,882 → 0,849). Sıra "kırp → birleştir → kırp" olarak düzeltildi ve testle güvenceye alındı; yeniden ölçüm bekleniyor.
+
+## Kural katmanı (hibrit tespitin ikinci bileşeni)
+
+`src/turkce_llm_dlp/rules_ner.py`: güçlü yapısal ipuçlarına dayalı ORG ve ADDRESS tanıyıcı (kurumsal/yasal ekler; "No + numara" çapası, mahalle/sokak anahtar sözcükleri, daire/kat ve il/ilçe sözlüğü). Model gerektirmez, API'de varsayılan olarak açıktır (`TURKCE_DLP_RULE_NER=0` ile kapatılır).
+
+Geliştirme setinde (realistic-v2 dev+test, 159 cümle) yalnız kural katmanı:
+
+| | Adres | Kurum |
+|---|---|---|
+| Precision | 0,976 | 0,846 |
+| Recall | 0,976 | 0,349 |
+| Token kapsama | 0,998 | 0,593 |
+
+Kurallar bu setin hatalarına bakılarak iyileştirildi (protokole uygun: kararlar geliştirme setinde); bu nedenle skorlar iyimserdir, genelleme mühürlü testte ölçülecektir. Gerçek metinde yanlış alarm taraması: UCI Türkçe ürün yorumlarının 33.991 benzersizinde 11 ORG ve 1 ADDRESS işareti (etiketsiz veri; precision değildir).
+
+## Veri v3 (`augmented-v3`)
+
+v2'ye ek olarak: 10.000 cümle 68 yeni çerçeveden (çok cümleli e-posta, şikâyet, yazım hatalı mesaj, İngilizce-Türkçe karışık, hukuk/sağlık, form, kod/log, numarasız adres tarifi), 1.250 yeni zor negatif ve 4.700 varlığı değiştirilmiş WikiNER cümlesi (ekler ünlü uyumuyla yeniden üretilir; kesme işaretsiz ek almış cins isimli varlıklar değiştirilmez). Toplam 55.123 eğitim cümlesi. Geliştirme ve mühürlü setle cümle/adres çakışması yok; mühürlü setteki kişi/kurum adlarının %7'si (4/55: Fenerbahçe, Halkbank, ODTÜ, Emir) WikiNER'in doğal cümlelerinde geçiyor.
+
+## Elenen veri kaynağı
+
+SUNLP Twitter NER (LREC 2022): Apache-2.0, ancak depo yalnızca tweet kimliği ve karakter konumu içeriyor; metin X API ile yeniden indirilmeli. Kullanılmadı (bkz. `docs/evaluation-protocol.md`).

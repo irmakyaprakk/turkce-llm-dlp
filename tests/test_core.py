@@ -425,8 +425,16 @@ def test_invalid_ner_offsets_fail_closed_before_upstream():
 
 
 def test_api_ner_model_is_optional_and_load_failure_falls_back(monkeypatch, caplog):
+    from turkce_llm_dlp.rules_ner import RuleEntityRecognizer
+
+    def only_rules(detector):
+        return [type(r) for r in detector.recognizers] == [RuleEntityRecognizer]
+
     monkeypatch.delenv("TURKCE_DLP_NER_MODEL_DIR", raising=False)
+    assert only_rules(api_module._configured_detector())
+    monkeypatch.setenv("TURKCE_DLP_RULE_NER", "0")
     assert api_module._configured_detector().recognizers == ()
+    monkeypatch.delenv("TURKCE_DLP_RULE_NER")
 
     monkeypatch.setenv("TURKCE_DLP_NER_MODEL_DIR", "/private/model-path")
 
@@ -434,7 +442,7 @@ def test_api_ner_model_is_optional_and_load_failure_falls_back(monkeypatch, capl
         raise OSError("private model path and request data")
 
     monkeypatch.setattr(HuggingFaceNERRecognizer, "from_local_model", classmethod(fail_to_load))
-    assert api_module._configured_detector().recognizers == ()
+    assert only_rules(api_module._configured_detector())
     assert "/private/model-path" not in caplog.text
     assert "request data" not in caplog.text
 

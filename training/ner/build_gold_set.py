@@ -31,6 +31,11 @@ DEV_RATIO = 0.15
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--manual-dir", type=Path, default=ROOT / "data/ner/manual")
+    ap.add_argument(
+        "--sealed",
+        action="store_true",
+        help="mühürlü final testini (data/ner/manual/sealed/*.txt) üretir; yalnızca final değerlendirmede kullan",
+    )
     ap.add_argument("--out-dir", type=Path, required=True)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--against", nargs="*", default=[])
@@ -39,13 +44,18 @@ def main() -> None:
     builder = ROOT / "training/ner/build_realistic_set.py"
     splits: dict[str, list[dict]] = {"dev": [], "test": []}
     batches = {}
-    for path in sorted(args.manual_dir.glob("realistic_batch*.txt")):
+    pattern_dir = args.manual_dir / "sealed" if args.sealed else args.manual_dir
+    pattern = "*.txt" if args.sealed else "realistic_batch*.txt"
+    for path in sorted(pattern_dir.glob(pattern)):
         lines = [
             line
             for line in path.read_text(encoding="utf-8").splitlines()
             if line.strip() and not line.strip().startswith("#")
         ]
-        dev_n = FIXED_DEV.get(path.stem, max(1, round(len(lines) * DEV_RATIO)))
+        if args.sealed:
+            dev_n = 0  # mühürlü sette dev yok: tamamı final test
+        else:
+            dev_n = FIXED_DEV.get(path.stem, max(1, round(len(lines) * DEV_RATIO)))
         with tempfile.TemporaryDirectory() as tmp:
             cmd = [sys.executable, str(builder), str(path), "--out-dir", tmp, "--dev-n", str(dev_n)]
             cmd += ["--seed", str(args.seed)]

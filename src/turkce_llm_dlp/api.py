@@ -16,6 +16,7 @@ from .gateway import DemoProvider, Gateway, OpenAICompatibleProvider, UpstreamUn
 from .masking import process_demo
 from .ner import DetectionPipeline, HuggingFaceNERRecognizer
 from .policy import Policy
+from .rules_ner import RuleEntityRecognizer
 
 MAX_TEXT_LENGTH = 20_000
 MAX_REQUEST_BYTES = 100_000
@@ -85,10 +86,17 @@ def _configured_policy() -> Policy:
     return Policy.from_yaml(policy_path) if policy_path else Policy()
 
 
+def _rule_recognizers() -> list:
+    # Kural tabanlı kurum/adres tanıyıcı modelden bağımsız çalışır; TURKCE_DLP_RULE_NER=0 ile kapatılabilir.
+    if os.environ.get("TURKCE_DLP_RULE_NER", "1").strip() == "0":
+        return []
+    return [RuleEntityRecognizer()]
+
+
 def _configured_detector() -> DetectionPipeline:
     model_dir = os.environ.get("TURKCE_DLP_NER_MODEL_DIR", "").strip()
     if not model_dir:
-        return DetectionPipeline()
+        return DetectionPipeline(_rule_recognizers())
     try:
         device = int(os.environ.get("TURKCE_DLP_NER_DEVICE", "-1"))
         startup_timeout = float(os.environ.get("TURKCE_DLP_NER_STARTUP_TIMEOUT_SECONDS", "60"))
@@ -104,8 +112,8 @@ def _configured_detector() -> DetectionPipeline:
         # optional local model is absent or cannot be loaded. Never log paths
         # that could contain identifying workspace details or request text.
         logger.warning("Yerel NER modeli yüklenemedi; kural tabanlı tespit ile devam ediliyor.")
-        return DetectionPipeline()
-    return DetectionPipeline([recognizer])
+        return DetectionPipeline(_rule_recognizers())
+    return DetectionPipeline([*_rule_recognizers(), recognizer])
 
 
 def _configured_provider():

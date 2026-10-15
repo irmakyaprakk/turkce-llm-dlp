@@ -11,7 +11,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from training.ner.train import entity_spans, span_metrics
+from training.ner.train import entity_spans, load_tokenizer, span_metrics
 
 GAP_TOKENS = frozenset({",", "/", "-", "–"})  # ";" liste ayırıcıdır: ayrı adresleri birleştirmez
 
@@ -98,6 +98,9 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--max-length", type=int, default=256)
     parser.add_argument("--output-json", type=Path)
+    parser.add_argument(
+        "--dump-predictions", type=Path, help="satır başına {id, pred} JSONL (evaluate_rules.py birleşimi için)"
+    )
     args = parser.parse_args()
     if args.batch_size < 1 or args.max_length < 8:
         parser.error("batch-size >= 1 ve max-length >= 8 olmalı")
@@ -108,7 +111,7 @@ def main() -> None:
         raise SystemExit("Eğitim gereksinimlerini kur: training/ner/requirements.txt") from exc
 
     rows = read_jsonl(args.data_dir / f"{args.split}.jsonl")
-    tokenizer = AutoTokenizer.from_pretrained(args.model_dir, use_fast=True)
+    tokenizer = load_tokenizer(AutoTokenizer, args.model_dir)
     if not tokenizer.is_fast:
         raise SystemExit("Etiketleri kelime ofsetlerine hizalamak için fast tokenizer gerekli.")
     model = AutoModelForTokenClassification.from_pretrained(args.model_dir)
@@ -206,6 +209,12 @@ def main() -> None:
             "note": "Span metrics cover visible tokens only; use evaluate_suite.py for full-text overlapping-window evaluation.",
         },
     }
+    if args.dump_predictions:
+        args.dump_predictions.parent.mkdir(parents=True, exist_ok=True)
+        with args.dump_predictions.open("w", encoding="utf-8") as stream:
+            for row, pred in zip(rows, predicted_labels):
+                padded = pred + ["O"] * (len(row["tokens"]) - len(pred))  # kesilen uzun satırlar
+                stream.write(json.dumps({"id": row["id"], "pred": padded}, ensure_ascii=False) + "\n")
     rendered = json.dumps(result, ensure_ascii=False, indent=2)
     print(rendered)
     if args.output_json:
