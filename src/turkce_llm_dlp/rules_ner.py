@@ -174,6 +174,37 @@ NON_ADDRESS_NUMBER_CONTEXT = frozenset(
 # ---------------------------------------------------------------------------
 
 
+def _is_alpha_word(token: str) -> bool:
+    return bool(re.fullmatch(r"[^\W\d_]+(?:['’][^\W\d_]+)?", token))
+
+
+def _load_first_names() -> frozenset[str]:
+    from importlib import resources
+
+    text = resources.files("turkce_llm_dlp").joinpath("data/turkce_adlar.txt").read_text(encoding="utf-8")
+    return frozenset(_key(line.strip()) for line in text.splitlines() if line.strip() and not line.startswith("#"))
+
+
+TURKISH_FIRST_NAMES = _load_first_names()
+# Aynı zamanda sıradan sözcük olan adlar: "ben X" bağlamında tek başına yeterli kanıt değildir
+AMBIGUOUS_NAMES = frozenset(
+    _key(w)
+    for w in "Irmak Deniz Su Umut Bahar Yaprak Gül Nur Can Ay Ada Kader Sevgi Barış Ekin Toprak Yağmur Pınar Defne Bulut Kuzey".split()
+)
+HONORIFIC_AFTER = frozenset(
+    {"bey", "beye", "beyi", "beyin", "beyden", "hanim", "hanima", "hanimi", "hanimin", "hanimdan", "hocam", "hoca"}
+)
+NAME_STOP = frozenset(
+    _key(w)
+    for w in (
+        "ve ile de da ki ben sen o bu şu biz siz mi mı mu mü ama fakat çünkü ya yani hem gibi için "
+        "tc numaram numarası telefon tel e-posta mail adres adresim yaşında yaşındayım öğrenci bir çok "
+        "burada şurada orada evet hayır merhaba selam iyi günler hocam bey hanım"
+    ).split()
+)
+COPULA_END = re.compile(r"(y[ıiuü]m|[ıiuü]m|y[ıiuü]z|d[ıiuü]r|t[ıiuü]r)$")
+
+
 class RuleEntityRecognizer:
     """`EntityRecognizer` arayüzüne uyan, model gerektirmeyen ORG/ADDRESS tanıyıcı.
 
@@ -183,16 +214,104 @@ class RuleEntityRecognizer:
 
     authoritative_types = frozenset({"ADDRESS"})
     # Kurum sınırlarında (alt birimler, "ve" bağlaçları) model daha isabetli; kural yalnız boşluk doldurur.
-    fallback_types = frozenset({"ORG"})
+    # Kişi: yalnızca açık tanıtım/hitap bağlamında ("adım ırmak", "ben Irmak", "selim bey") ve model boşsa.
+    fallback_types = frozenset({"ORG", "PERSON"})
 
     def recognize(self, text: str) -> Iterable[EntitySpan]:
         tokens = [(m.group(), m.start(), m.end()) for m in TOKEN_RE.finditer(text)]
         spans = list(self._addresses(text, tokens))
         taken = [(s.start, s.end) for s in spans]
-        for span in self._orgs(text, tokens):
+        for span in [*self._orgs(text, tokens), *self._persons(text, tokens)]:
             if not any(span.start < end and span.end > start for start, end in taken):
                 spans.append(span)
+                taken.append((span.start, span.end))
         return sorted(spans, key=lambda s: s.start)
+
+    # --- kişiler (bağlam ipuçlarıyla) ---
+    def _persons(self, text, tokens):
+        keys = [_key(_base(tok)) for tok, _, _ in tokens]
+        for index, key in enumerate(keys):
+            start = None
+            next_key = keys[index + 1] if index + 1 < len(keys) else ""
+            prev_key = keys[index - 1] if index > 0 else ""
+            evidence = None
+            if key in {"ismim", "adimiz"} or (key in {"ad", "adi"} and next_key in {"soyad", "soyadi"}):
+                evidence = "any"  # tartışmasız tanıtım: "ismim …", "Ad Soyad: …"
+            elif key == "adim":
+                # "adım" aynı zamanda "bir adım ileride"dir: "benim adım" ya da ardından bilinen bir ad gerekir
+                evidence = "any" if prev_key == "benim" else "name"
+            elif key == "isim" and next_key == "" and index + 1 < len(tokens):
+                evidence = None
+            elif key == "isim" and index + 1 < len(tokens) and tokens[index + 1][0] == ":":
+                evidence = "any"  # form alanı "İsim: …"
+            if evidence:
+                cursor = index + 1
+                while cursor < len(tokens) and (
+                    keys[cursor] in {"soyadim", "soyadi", "soyad"} or tokens[cursor][0] in ":-"
+                ):
+                    cursor += 1
+                start, strong = cursor, evidence == "any"
+            elif key == "ben" and index + 1 < len(tokens):
+                start, strong = index + 1, False
+            if start is not None:
+                span = self._name_run(text, tokens, keys, start, strong)
+                if span:
+                    yield span
+            # "selim bey", "ayşe hanım": hitaptan önceki tek sözcük
+            if key in HONORIFIC_AFTER and index > 0:
+                prev, p_start, p_end = tokens[index - 1]
+                prev_key = keys[index - 1]
+                if (
+                    _is_alpha_word(prev)
+                    and prev == _base(prev)
+                    and prev_key not in NAME_STOP
+                    and not (key.startswith("hanim") and prev_key in {"ev", "is"})
+                    and (prev[0].isupper() or prev_key in TURKISH_FIRST_NAMES)
+                ):
+                    yield EntitySpan("PERSON", p_start, p_end)
+
+    @staticmethod
+    def _name_run(text, tokens, keys, start, strong):
+        """İpucundan sonraki 1-3 sözcüklük adı döndürür; kopula/fiil ekli sözcükte durur ("öğrenciyim")."""
+        words = []
+        cursor = start
+        while cursor < len(tokens) and len(words) < 3:
+            token = tokens[cursor][0]
+            base = _base(token)
+            key = keys[cursor]
+            if words and "\n" in text[tokens[words[-1]][2] : tokens[cursor][1]]:
+                break  # satır sonu adı bitirir ("Tülay Yazıcı\nÖğrencinin okulu")
+            stop = key in NAME_STOP and not (words and base[:1].isupper())  # "Tuğba Şen": büyük harfli soyadı
+            if not _is_alpha_word(base) or stop or (len(key) >= 6 and COPULA_END.search(key)):
+                break
+            words.append(cursor)
+            if base != token:  # "Irmak'ım", "Kaya'yım": ekli sözcük adın sonudur
+                break
+            cursor += 1
+        if not words:
+            return None
+        first = tokens[words[0]][0]
+        first_key = keys[words[0]]
+        if not strong:
+            # "ben X" / "adım X": ilk sözcük bilinen bir ad olmalı ("Ben Samsung Galaxy", "BEN MEMNUN" değil);
+            # sözcük anlamı da taşıyan adlar ("ırmak", "deniz") ancak tanıtım cümlesi orada bitiyorsa kabul edilir.
+            ends_here = words[-1] + 1 >= len(tokens) or tokens[words[-1] + 1][0] in ",.!?;:"
+            if first_key not in TURKISH_FIRST_NAMES or first.isupper() and len(first) > 1:
+                return None
+            # Zayıf bağlamda soyadı yalnızca büyük harfli ya da bilinen ad ise eklenir ("ben doğan grubunu" → "doğan")
+            kept = [words[0]]
+            for position in words[1:]:
+                word = tokens[position][0]
+                if word[:1].isupper() or keys[position] in TURKISH_FIRST_NAMES:
+                    kept.append(position)
+                else:
+                    break
+            words = kept
+            ends_here = words[-1] + 1 >= len(tokens) or tokens[words[-1] + 1][0] in ",.!?;:"
+            if first_key in AMBIGUOUS_NAMES and not (ends_here or len(words) > 1 and first[0].isupper()):
+                return None
+        last = tokens[words[-1]]
+        return EntitySpan("PERSON", tokens[words[0]][1], last[1] + len(_base(last[0])))
 
     # --- kurumlar ---
     def _orgs(self, text: str, tokens):

@@ -257,3 +257,11 @@ tahminciyle (`WordLevelPredictor`: sözcükler `is_split_into_words` ile verilir
 Doğrulama: geliştirme setinin 159 cümlesinin tamamında üretim tahmini, değerlendirme betiğinin tahminiyle varlık düzeyinde
 aynı (0 fark). Raporlanan sayılar artık doğrudan üretim davranışını temsil eder. Yerel CPU'da tek mesajlık tespit süresi
 ısınmadan sonra ~50 ms (seed 42, v4.1 boru hattı).
+
+## Gerçek kullanımda görülen hatalar ve kural eklemeleri (v4.2, model değişmedi)
+
+Eklentiyle gerçek ChatGPT denemesinde iki kaçırma görüldü ve modelden bağımsız kurallarla giderildi:
+
+- **Telefon:** Öneksiz, ayraçsız numaralar ("ararmısın 5477658697", "hey 2125462345") yakalanmıyordu. Cep operatör önekleri (50x/53x/54x/55x/56x) ve BTK il alan kodlarıyla başlayan 10 haneli sayılar artık telefon sayılır; "sipariş/fatura/takip/hesap no" bağlamı ve tutar birimleri ("5000000000 TL") yanlış alarmı önler.
+- **Kişi (tanıtım ipuçları):** Model "benim adım ırmak", "merhaba ben ırmak" gibi küçük harfli, sözcük anlamı da olan adları kaçırıyordu. Model öncelikli (yalnızca boşluk dolduran) bir kural eklendi: "benim adım / ismim / Ad Soyad: / İsim:" sonrası ad; "ben X" ve "X bey/hanım" için ad listesinde (262 yaygın ad) bulunma şartı; "bir adım gerisinde", "işim gereği", "Ben Samsung Galaxy…", "BEN MEMNUN" gibi kalıplar elenir.
+  Geliştirme setinde yalnız kural: 10/10 doğru kişi (yanlış alarm 0); 8.000 rastgele ürün yorumunda 4 eşleşme (3'ü gerçek kişi adı). Hibrit F1 değişmedi (0,9725; kural yalnız modelin boş bıraktığı yeri doldurur).

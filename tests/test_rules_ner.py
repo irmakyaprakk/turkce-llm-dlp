@@ -1,3 +1,5 @@
+import pytest
+
 from turkce_llm_dlp.rules_ner import RuleEntityRecognizer
 
 R = RuleEntityRecognizer()
@@ -158,3 +160,31 @@ def test_org_compounds_city_prefix_and_subunit_are_merged():
         ("ORG", "Getir"),
     ]
     assert run("Aras Kargo şubesi kapalı", [("ORG", "Aras Kargo")]) == [("ORG", "Aras Kargo")]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("hey benim adım ırmak ve 10018370224", ["ırmak"]),
+        ("benim adım ırmak yaprak", ["ırmak yaprak"]),
+        ("merhaba ben ırmak", ["ırmak"]),
+        ("ismim Zeynep Kaya, öğrenciyim", ["Zeynep Kaya"]),
+        ("Ad Soyad: Ali Kaya", ["Ali Kaya"]),
+        ("Ad Soyad: Tuğba Şen", ["Tuğba Şen"]),
+        ("İsim: Nazife Arslantürk", ["Nazife Arslantürk"]),
+        ("ben Mehmet Yılmaz, satın alma", ["Mehmet Yılmaz"]),
+        ("dosyayı mehmet beye ilettim", ["mehmet"]),
+        ("ben doğan grubunu sevmem", ["doğan"]),
+        ("ben deniz kenarındayım", []),
+        ("ben su içtim", []),
+        ("bir adım gerisinde", []),
+        ("işim gereği çok kullanıyorum", []),
+        ("Ben Samsung Galaxy kullanıyorum", []),
+        ("BEN MEMNUN KALDIM", []),
+        ("ev hanımı olarak çalışıyor", []),
+        ("Veli adı soyadı: Tülay Yazıcı\nÖğrencinin okulu", ["Tülay Yazıcı"]),
+    ],
+)
+def test_person_cues(text, expected):
+    found = [text[s.start : s.end] for s in RuleEntityRecognizer().recognize(text) if s.type == "PERSON"]
+    assert found == expected
