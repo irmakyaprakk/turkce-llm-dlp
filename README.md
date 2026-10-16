@@ -45,6 +45,7 @@ curl -s http://127.0.0.1:8000/v1/process \
 
 - NFKC ve zero-width temizliği yalnızca tespit kopyasında uygulanır; maskeleme kaynak metindeki özgün offset'lerle yapılır.
 - TCKN checksum, Türk IBAN mod-97 ve 13-19 haneli kart adaylarında Luhn doğrulaması kullanılır.
+- Türkiye telefon numaraları (cep 5xx, sabit 2xx-4xx; +90 / 0090 / 0 öneki; boşluk, nokta, tire, parantez; kısmen gizlenmiş "05XX" biçimi) yakalanır. Öneksiz 10 haneli sayı yalnızca telefon biçiminde yazılmışsa ya da "tel/cep/whatsapp" bağlamındaysa telefon sayılır; "sipariş/fatura/takip no" bağlamı yanlış alarmı önler. Farklı yazılan aynı numara aynı placeholder'ı alır.
 - E-posta, bilinen GitHub/AWS/Slack/Stripe/Google/GitLab/npm/PyPI biçimleri, JWT ve PEM private key desenleri yakalanır. Secret benzeri atamalarda bağlam + Shannon entropisi, parola atamalarında anahtar adı kullanılır.
 - `DetectionPipeline` kural tabanlı tespiti optional NER tanıyıcılarıyla birleştirebilir. NER inference exception veya zaman aşımı verirse hassas metni loglamadan uyarı yazar ve deterministik kurallarla devam eder. Zaman aşımında ayrı model süreci sonlandırılır ve servis yeniden başlatılana kadar NER devre dışı kalır. Hatalı model offset'i veri bütünlüğü hatası sayılır; gateway upstream'e geçmez.
 - Aynı türdeki aynı özgün değer, tek istek içinde tutarlı placeholder alır.

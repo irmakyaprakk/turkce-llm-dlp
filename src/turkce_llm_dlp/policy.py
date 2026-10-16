@@ -11,7 +11,7 @@ import yaml
 from .detectors import Detection
 
 Action = Literal["mask", "block", "allow"]
-ENTITY_TYPES = frozenset({"TCKN", "IBAN", "CARD", "EMAIL", "SECRET", "PERSON", "ORG", "LOCATION", "ADDRESS"})
+ENTITY_TYPES = frozenset({"TCKN", "IBAN", "CARD", "EMAIL", "PHONE", "SECRET", "PERSON", "ORG", "LOCATION", "ADDRESS"})
 VALID_ACTIONS = frozenset({"mask", "block", "allow"})
 
 

@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 
 from training.ner.evaluate_bypass import evaluate
@@ -570,3 +571,47 @@ def test_semicolon_inside_model_span_does_not_merge_two_addresses():
 
     values = [d.value for d in DetectionPipeline([GreedyModel()]).detect(text) if d.type == "ADDRESS"]
     assert values == ["Lale Sk. No:2 Bağcılar", "Erguvan Sk. No:17 Sancaktepe"]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("tel 0532 123 45 67", "0532 123 45 67"),
+        ("beni ara: +90 532 123 45 67", "+90 532 123 45 67"),
+        ("telefon 05321234567", "05321234567"),
+        ("sabit (0212) 555 12 34", "(0212) 555 12 34"),
+        ("(212) 555 12 34 merkez", "(212) 555 12 34"),
+        ("iletişim: 0312-444-12-34", "0312-444-12-34"),
+        ("cep: 532 123 45 67", "532 123 45 67"),
+        ("whatsapp 5321234567", "5321234567"),
+        ("0090 532 1234567", "0090 532 1234567"),
+        ("tel 05XX 000 00 01.", "05XX 000 00 01"),  # kısmen gizlenmiş numara da maskelenir
+    ],
+)
+def test_phone_numbers_are_detected(text, expected):
+    assert [(d.type, d.value) for d in detect(text)] == [("PHONE", expected)]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "sipariş no 5321234567",
+        "sipariş no 532 123 45 67",
+        "takip 4123456789",
+        "fatura no 0123456789",
+        "tarih 2026-10-12",
+        "tutar 312.500.000 TL",
+        "IP 192.168.10.12",
+        "oda 532 kat 3",
+        "XXX XXX XX XX",
+    ],
+)
+def test_phone_rule_avoids_numeric_false_positives(text):
+    assert [d for d in detect(text) if d.type == "PHONE"] == []
+
+
+def test_same_phone_in_different_formats_gets_one_placeholder():
+    from turkce_llm_dlp.masking import MaskingSession
+
+    masked, _ = MaskingSession().mask("tel 0532 123 45 67, yine +90 (532) 123-45-67")
+    assert masked.count("<PHONE_1>") == 2

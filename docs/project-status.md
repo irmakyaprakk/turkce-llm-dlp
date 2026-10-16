@@ -6,7 +6,7 @@ Son kod incelemesi: 12 Ekim 2026. Bu belge, bitirme projesi tanıtım dokümanı
 
 | Bileşen | Durum | Kanıt / sınır |
 |---|---|---|
-| TCKN, IBAN, kredi kartı, e-posta ve secret tespiti | Kod hazır | Checksum, mod-97, Luhn, bilinen secret biçimleri ve bağlam/entropy denetimi. Sınıflandırıcı kuralları gerçek veride ayrıca ölçülmeli. |
+| TCKN, IBAN, kredi kartı, e-posta, telefon ve secret tespiti | Kod hazır | Checksum, mod-97, Luhn, telefon biçim + bağlam denetimi, bilinen secret biçimleri ve bağlam/entropy denetimi. Sınıflandırıcı kuralları gerçek veride ayrıca ölçülmeli. |
 | Unicode/bypass normalizasyonu | Kod ve sentetik ölçüm hazır | Ayraç, zero-width ve fullwidth için açık/kapalı koşullarda 50 pozitif + 50 negatif örnek. Yalnızca TCKN ve bu üç dönüşüm için geçerli. |
 | İstek kapsamlı maskeleme ve geri eşleme | Çekirdek/test hazır | Tekrarlı değer, çakışan placeholder ve parçalı SSE senaryoları test ediliyor. |
 | Politika ve sağlayıcı sınırı | Çekirdek/test hazır | YAML `mask/block/allow`, HTTPS OpenAI uyumlu adaptör ve hata metni sanitizasyonu var. Harici sağlayıcı varsayılan değil. |

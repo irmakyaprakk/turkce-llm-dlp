@@ -14,6 +14,7 @@ LABELS = {
     "IBAN": "IBAN",
     "CARD": "Kredi kartı",
     "EMAIL": "E-posta",
+    "PHONE": "Telefon",
     "SECRET": "Gizli bilgi",
     "PERSON": "Kişi",
     "ORG": "Kurum",
@@ -40,6 +41,8 @@ class MaskingSession:
             identity = re.sub(r"[\s-]", "", identity).upper()
         elif detection.type == "CARD":
             identity = re.sub(r"[\s-]", "", identity)
+        elif detection.type == "PHONE":
+            identity = re.sub(r"[^0-9Xx*]", "", identity)[-10:].upper()
         key = (detection.type, identity)
         if key not in self._value_to_placeholder:
             self._counts[detection.type] = self._counts.get(detection.type, 0) + 1

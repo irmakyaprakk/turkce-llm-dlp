@@ -111,6 +111,40 @@ PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
 )
 
+# Türkiye telefon numarası: cep (5xx) ve sabit hat (2xx-4xx), isteğe bağlı +90 / 0090 / 90 / 0 öneki,
+# boşluk, nokta, tire ya da parantezli yazım. Kısmen gizlenmiş haneler ("05XX 000 00 01") de numaradır.
+PHONE = re.compile(
+    r"(?<![\w+(])\(?(?P<prefix>(?:(?:\+|00)\s?90|90)[\s.\-]?|0[\s.\-]?)?"
+    r"\(?(?P<area>(?:5[0-9Xx*]{2}|[2-4][0-9]{2}))\)?"
+    r"(?P<rest>[\s.\-]?[0-9Xx*]{3}[\s.\-]?[0-9Xx*]{2}[\s.\-]?[0-9Xx*]{2})(?![\w])",
+)
+PHONE_CONTEXT = re.compile(
+    r"(?i)(?:tel|telefon\w*|cep\w*|gsm|whatsapp|wp|ara|aray[ıi]n|ileti[şs]im|phone|mobile|fax|faks)" r"\s*[:.\-]?\s*$"
+)
+# Öneksiz 10 haneli sayının telefon olmadığını gösteren bağlam ("sipariş no 5321234567")
+NON_PHONE_CONTEXT = re.compile(
+    r"(?i)(?:sipari[şs]|fatura|takip|kargo|abone|m[üu][şs]teri|referans|dosya|po|order|invoice|tracking)\w*"
+    r"\s*(?:no|numaras[ıi]|kodu)?\s*[:.\-]?\s*$"
+)
+
+
+def plausible_phone(match: re.Match[str], view: str) -> bool:
+    """Biçim, hane sayısı ve bağlamla telefon adayını doğrular (sipariş/takip no yanlış alarmını önler)."""
+    core = match.group("area") + match.group("rest")
+    symbols = re.sub(r"[\s.\-()]", "", core)
+    if len(symbols) != 10 or sum(char.isdigit() for char in symbols) < 7:
+        return False
+    if match.group("prefix"):
+        return True
+    # Öneksiz: gruplar ayraçla yazılmış olmalı ("532 123 45 67") ya da hemen önünde "tel:" gibi bağlam olmalı
+    formatted = bool(re.search(r"[\s.\-]", match.group("rest")))
+    before = view[max(0, match.start() - 25) : match.start()]
+    if NON_PHONE_CONTEXT.search(before):
+        return False
+    parenthesized = match.group().startswith("(")  # "(212) 555 12 34": alan kodu parantezi telefona özgü
+    return (formatted and match.group("area")[0] == "5") or parenthesized or bool(PHONE_CONTEXT.search(before))
+
+
 PASSWORD_ASSIGNMENT = re.compile(
     r"(?i)\b(?:password|passwd|pwd)\b\s*[:=]\s*(?:\"(?P<double>[^\"\r\n]{1,512})\"|"
     r"'(?P<single>[^'\r\n]{1,512})'|(?P<bare>[^\s,;]{1,512}))"
@@ -142,6 +176,11 @@ def detect(text: str, *, normalize: bool = True) -> list[Detection]:
                 continue
             start, end = _span(match, offsets)
             candidates.append(Detection(kind, start, end, text[start:end]))
+
+    for match in PHONE.finditer(view):
+        if plausible_phone(match, view):
+            start, end = _span(match, offsets)
+            candidates.append(Detection("PHONE", start, end, text[start:end]))
 
     # Password assignments are context-specific and may have low entropy.
     # Other generic credentials need both a sensitive key name and sufficient

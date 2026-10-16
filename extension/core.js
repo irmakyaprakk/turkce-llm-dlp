@@ -42,6 +42,7 @@
       if (item.type === "TCKN") canonical = canonical.replace(/\D/g, "");
       else if (item.type === "IBAN") canonical = canonical.replace(/[\s-]/g, "").toUpperCase();
       else if (item.type === "CARD") canonical = canonical.replace(/[\s-]/g, "");
+      else if (item.type === "PHONE") canonical = canonical.replace(/[^0-9Xx*]/g, "").slice(-10).toUpperCase();
       const identity = `${item.type}\u0000${canonical}`;
       let placeholder = identityToPlaceholder.get(identity);
       if (!placeholder) {
