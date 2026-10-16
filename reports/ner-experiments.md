@@ -223,3 +223,24 @@ Geliştirme setinde (3 seed, hibrit): v3 0,971 → v4 0,973 F1; kapsama 0,993 �
 2. **Yer F1'i düşük (0,35–0,45) ama kapsama yüksek (0,85–0,89):** Yerler çoğunlukla maskeleniyor, fakat tür/sınır altın etiketle uyuşmuyor. Bunun önemli bir nedeni, sealed2 etiketlenirken alınan yeni karar: numarasız bina/apartman/plaza/park/kampüs adları LOC sayıldı ("çınar plaza", "zümrüt apartmanı"). Eğitim verisinde bu türde örnek yok; model bunları çoğunlukla kurum sanıyor ya da kısmen işaretliyor. Yer sayısı az (28) olduğu için bu satırın oynaklığı yüksek (std 0,09–0,18).
 3. **Bu sette kural katmanı zarar veriyor (bulgu):** Yalnız model, hibritten daha iyi (v4: 0,880 vs 0,865 F1; 0,987 vs 0,971 kapsama). Kayıp adreste: hibritte adres sonucu seed'den bağımsız (std 0,000), çünkü adres kuralı öncelikli (`authoritative`). Model mükemmel olsa bile (oracle) hibrit bu sette 0,953 F1'de kalıyor; yani sınırı kural katmanı belirliyor. Bu setin adres biçimi ("…no 12, kadıköy, istanbul; tc …", küçük harf, virgüllü il/ilçe) kural katmanının tasarlandığı biçimden farklı. Geliştirme setinde ve ilk mühürlü testte kural katmanı katkı sağlamıştı. **Bu sete bakılarak kural değiştirilmedi;** önceden belirlenen hibrit yapılandırma korunur. Gelecek iş: adres kuralının önceliğini modelle güven tabanlı birleştirmek ve bunu yeni, bağımsız bir sette ölçmek.
 4. **Test setinin sınırlılığı:** sealed2 mesajları büyük ölçüde aynı kalıbı izliyor ("X'e söyle, …; adres: … no N, şehir; tc …, tel …"), yazım hatası azdır. Sonuçlar gündelik yazımı temsil eder ama gerçek mesajlaşmanın tüm dağınıklığını kapsamaz.
+
+## v4.1 — boru hattı düzeltmeleri (yeniden eğitim yok)
+
+sealed2'de görülen iki sorun için, aynı v4 modelleriyle (3 seed) yalnızca boru hattı değiştirildi:
+
+1. **Adres birleşimi:** Öncelikli kural adresi ile çakışan model adresi en geniş kapsamla birleşir; birleşim TCKN/IBAN/telefon gibi kural tespitlerine, `;` ve satır sonuna taşmaz; ayrı yazılmış hâl eki ("trabzon a") dışarıda kalır.
+2. **Tesis / bina adı kuralı** (`FacilityRecognizer`): numarasız apartman, plaza, iş merkezi, iş hanı, pasaj, park, kampüs, AVM, rezidans adı LOC; numaralı adresin hemen önündeyse adresin parçası. Kural `ANNOTATION_RULES.md`'ye yazıldı; geliştirme setinde bir etiket buna uyduruldu ("Beşiktaş kampüsündeki").
+
+| | Geliştirme v4.0 | **Geliştirme v4.1** | sealed2 v4.0 (resmî) | sealed2 v4.1 (*sonradan*) |
+|---|---|---|---|---|
+| Genel F1 | 0,969 | **0,973** | 0,865 ± 0,011 | 0,921 ± 0,007 |
+| Kapsama | 0,995 | **0,996** | 0,971 ± 0,005 | 0,994 ± 0,004 |
+| Yer F1 | 0,956 | **0,982** | 0,354 | 0,723 |
+| Kurum F1 | 0,943 | 0,943 | 0,858 | 0,957 |
+| Adres F1 | 1,000 | 1,000 | 0,887 | 0,895 |
+
+(Geliştirme v4.0 değeri, güncellenen "Beşiktaş kampüsündeki" etiketiyle yeniden hesaplandığı için önceki 0,973'ten düşüktür.)
+
+**Yorum.** Geliştirme setinde gerileme yok, küçük kazanç var. sealed2'de büyük iyileşme görülüyor (sızan kişisel veri token'ı %2,9 → %0,6); ancak değişiklikler bu setteki hata türleri görülerek tasarlandığı için bu sonuç **kör değildir ve iyimser kabul edilmelidir**. Resmî sealed2 sonucu v4.0 değeridir. Adres F1'i hâlâ yalnız modelin gerisinde (0,895 vs 0,957): birleşim kapsamayı artırıyor ama sınır uyumunu tam çözmüyor; adres kuralının önceliğinin güven tabanlı hâle getirilmesi gelecek iştir.
+
+**Üretim yapılandırması (final):** BERTurk + augmented-v4 (seed 42) + kural katmanı + yer adı sözlüğü + tesis kuralı + adres birleşimi + son işlem; ayrıca kural tabanlı TCKN, IBAN, kart, e-posta, **telefon** ve gizli anahtar tespiti.
