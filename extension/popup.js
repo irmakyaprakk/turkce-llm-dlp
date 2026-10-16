@@ -41,3 +41,10 @@ clearButton.addEventListener("click", () => {
     }
   });
 });
+
+const service = document.getElementById("service");
+chrome.runtime.sendMessage({type: "turkce-dlp-health"}, (response) => {
+  const up = Boolean(response?.ok);
+  service.textContent = up ? "Yerel servis: çalışıyor" : "Yerel servis: kapalı — mesajlar gönderilmez";
+  service.className = up ? "ok" : "down";
+});

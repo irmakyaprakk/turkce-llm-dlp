@@ -90,8 +90,18 @@ async function handle(message, sender) {
   return {error: true};
 }
 
+// Popup'taki servis durumu: yalnızca sağlık uç noktası; metin göndermez.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (typeof message?.type !== "string" || !message.type.startsWith("turkce-dlp-")) return false;
+  if (message?.type !== "turkce-dlp-health" || !sender.url?.startsWith(chrome.runtime.getURL(""))) return false;
+  fetch(API_URL.replace("/v1/detect", "/health"), {cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(2000)})
+    .then((response) => sendResponse({ok: response.ok}), () => sendResponse({ok: false}));
+  return true;
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (typeof message?.type !== "string" || !message.type.startsWith("turkce-dlp-") || message.type === "turkce-dlp-health") {
+    return false;
+  }
   handle(message, sender).then(sendResponse, () => sendResponse({error: true}));
   return true;
 });

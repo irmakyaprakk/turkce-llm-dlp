@@ -105,3 +105,13 @@ node --test extension/core.test.cjs
 ## Lisans
 
 Kaynak kod MIT lisanslıdır (`LICENSE`). Eğitim verileri ve başlangıç modeli depoya dahil değildir; kaynakları, lisansları ve atıfları `DATA_LICENSES.md` içindedir.
+
+## Arka planda çalıştırma (macOS, terminalsiz)
+
+Yerel servisi her seferinde terminalden başlatmak yerine bir kez arka plan servisi olarak kurun:
+
+1. Finder'da `scripts/macos/servisi_kur.command` dosyasına çift tıklayın (ilk seferde macOS "tanımlanamayan geliştirici" uyarısı verirse sağ tık → **Aç**).
+2. Servis kurulur, model yüklenir ve oturum her açıldığında kendiliğinden başlar; çökerse yeniden başlatılır. Kayıtlar: `~/Library/Logs/turkce-dlp.log`.
+3. Kod güncellendiğinde `servisi_yeniden_baslat.command`, kaldırmak için `servisi_kaldir.command`.
+
+Eklenti popup'ı servisin çalışıp çalışmadığını gösterir. macOS "Masaüstü klasörüne erişim" izni isterse **İzin Ver** deyin.

@@ -160,6 +160,15 @@ await step("zengin metin alanı (contenteditable, Claude benzeri) da maskelenir"
   assert.ok(sent.includes("[TELEFON_1]") && !sent.includes(PHONE.slice(0, 4) + " 123"), sent);
 });
 
+await step("popup yerel servisin durumunu gösterir", async () => {
+  const extensionId = new URL(context.serviceWorkers()[0].url()).host;
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.locator("#service.ok").waitFor();
+  assert.match(await popup.locator("#service").textContent(), /çalışıyor/);
+  await popup.close();
+});
+
 await step("servis kapalıysa gönderim durur ve neden açıkça söylenir", async () => {
   await page.goto(`${MOCK}/c/kapali0001abc`);
   await page.waitForTimeout(1500);
