@@ -94,24 +94,104 @@ class HuggingFaceNERRecognizer:
         return spans
 
 
+# Eğitim ve değerlendirmedeki sözcük bölütlemesiyle aynı: "Market'in" tek sözcüktür (kesme işaretli ek dahil).
+_WORD_TOKEN_RE = re.compile(r"\w+(?:['’]\w+)*|[^\w\s]", re.UNICODE)
+
+
+class WordLevelPredictor:
+    """Modeli eğitimdeki gibi sözcük düzeyinde çalıştırır: her sözcüğün etiketi ilk alt parçasından alınır.
+
+    HF `pipeline` kesme işaretinde sözcüğü böler ("Market" + "'" + "in"); model eğitimde eklere hiç etiket
+    görmediği için bu parçalara rastgele etiket verebilir. Burada sözcükler `is_split_into_words` ile verilir;
+    böylece üretim, raporlanan değerlendirmeyle birebir aynı karar kuralını uygular. Uzun metin örtüşmeli
+    sözcük pencerelerine bölünür; her sözcük, kenara en uzak olduğu pencereden etiket alır.
+    """
+
+    def __init__(self, tokenizer, model, device: int = -1, window_words: int = 100, overlap_words: int = 30):
+        import torch
+
+        if not 0 < overlap_words < window_words:
+            raise ValueError("Pencere ayarı geçersiz.")
+        self._torch = torch
+        self.tokenizer = tokenizer
+        self.device = torch.device("cpu" if device < 0 else f"cuda:{device}")
+        self.model = model.to(self.device).eval()
+        self.id2label = {int(k): v for k, v in model.config.id2label.items()}
+        self.window_words = window_words
+        self.overlap_words = overlap_words
+        self.max_length = min(512, getattr(tokenizer, "model_max_length", 512) or 512)
+
+    def _windows(self, count: int):
+        step = self.window_words - self.overlap_words
+        start = 0
+        while True:
+            end = min(count, start + self.window_words)
+            core_start = start if start == 0 else start + self.overlap_words // 2
+            core_end = end if end == count else end - self.overlap_words // 2
+            yield start, end, core_start, core_end
+            if end == count:
+                return
+            start += step
+
+    def __call__(self, text: str) -> list[dict]:
+        words = [(m.group(), m.start(), m.end()) for m in _WORD_TOKEN_RE.finditer(text)]
+        if not words:
+            return []
+        labels = ["O"] * len(words)
+        scores = [1.0] * len(words)
+        torch = self._torch
+        for start, end, core_start, core_end in self._windows(len(words)):
+            encoded = self.tokenizer(
+                [w for w, _, _ in words[start:end]],
+                is_split_into_words=True,
+                truncation=True,
+                max_length=self.max_length,
+                return_tensors="pt",
+            )
+            word_ids = encoded.word_ids(0)
+            with torch.no_grad():
+                logits = self.model(**{k: v.to(self.device) for k, v in encoded.items()}).logits[0]
+            probs = torch.softmax(logits, dim=-1)
+            seen: set[int] = set()
+            for position, word_id in enumerate(word_ids):
+                if word_id is None or word_id in seen:
+                    continue
+                seen.add(word_id)
+                index = start + word_id
+                if core_start <= index < core_end:
+                    best = int(probs[position].argmax())
+                    labels[index] = self.id2label.get(best, "O")
+                    scores[index] = float(probs[position, best])
+        results: list[dict] = []
+        current = None
+        for (_, w_start, w_end), label, score in zip(words, labels, scores, strict=True):
+            kind = label[2:] if label[:2] in ("B-", "I-") else None
+            if kind is None:
+                current = None
+                continue
+            if label.startswith("I-") and current is not None and current["entity_group"] == kind:
+                current["end"] = w_end
+                current["_scores"].append(score)
+                continue
+            current = {"entity_group": kind, "start": w_start, "end": w_end, "_scores": [score]}
+            results.append(current)
+        for item in results:
+            values = item.pop("_scores")
+            item["score"] = sum(values) / len(values)
+        return results
+
+
 def _create_local_predictor(model_dir: str, device: int):
     """Load only local artifacts; used in the killable worker process."""
     try:
-        from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
+        from transformers import AutoModelForTokenClassification, AutoTokenizer
     except ImportError as exc:
         raise RuntimeError("NER modeli için transformers kurulmalı.") from exc
     tokenizer = AutoTokenizer.from_pretrained(model_dir, local_files_only=True, use_fast=True)
     if not tokenizer.is_fast:
         raise RuntimeError("Fast tokenizer gerekli.")
     model = AutoModelForTokenClassification.from_pretrained(model_dir, local_files_only=True)
-    return pipeline(
-        "token-classification",
-        model=model,
-        tokenizer=tokenizer,
-        aggregation_strategy="first",  # eğitimdeki ilk alt sözcük etiketlemesiyle aynı; sözcük ortadan bölünmez
-        stride=64,
-        device=device,
-    )
+    return WordLevelPredictor(tokenizer, model, device=device)
 
 
 def _ner_process_main(connection, model_dir: str, device: int) -> None:
@@ -282,6 +362,21 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
 
 
 _MERGE_GAP = frozenset(" \t,/-–")  # ";" ve satır sonu ayrı adresleri ayırır
+
+
+_TRAILING_SUFFIX_RE = re.compile(r"['’][^\W\d_]+$", re.UNICODE)
+
+
+def strip_apostrophe_suffix(text: str, span: EntitySpan) -> EntitySpan:
+    """Kesme işaretinden sonraki ek varlığa ait değildir: "Ayşe Demir'e" → "Ayşe Demir" (anotasyon kuralı).
+
+    Sözcük düzeyindeki model eki de içeren sözcüğün tamamını işaretler; ek dışarıda bırakılınca hem aynı kişi
+    farklı eklerle aynı yer tutucuyu alır hem de ek LLM'e gider ("[KİŞİ_1]'e söyle").
+    """
+    match = _TRAILING_SUFFIX_RE.search(text[span.start : span.end])
+    if match and match.start() > 0:
+        return EntitySpan(span.type, span.start, span.start + match.start())
+    return span
 
 
 def merge_adjacent_spans(text: str, spans: Iterable[EntitySpan]) -> list[EntitySpan]:
@@ -555,7 +650,7 @@ class DetectionPipeline:
                 EntitySpan(ENTITY_ALIASES.get(span.type.upper(), span.type), span.start, span.end) for span in spans
             ]
             # Önce kırp (";" gibi ayırıcılar span dışına çıksın), sonra birleştir, sonra tekrar kırp.
-            trimmed = [trim_address_span(text, item) for item in normalized]
+            trimmed = [trim_address_span(text, strip_apostrophe_suffix(text, item)) for item in normalized]
             for span in (trim_address_span(text, item) for item in merge_adjacent_spans(text, trimmed)):
                 kind = ENTITY_ALIASES.get(span.type.upper())
                 if kind not in NER_TYPES:

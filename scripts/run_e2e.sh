@@ -7,5 +7,5 @@ API=$!
 python tests/e2e/serve_mock.py &
 MOCK=$!
 trap 'kill $API $MOCK 2>/dev/null || true' EXIT
-for _ in $(seq 1 50); do curl -sf --noproxy "*" http://127.0.0.1:8000/health > /dev/null && break; sleep 0.2; done
+for _ in $(seq 1 600); do curl -sf --noproxy "*" http://127.0.0.1:8000/health > /dev/null && break; sleep 0.2; done
 node tests/e2e/extension.e2e.mjs

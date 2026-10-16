@@ -88,6 +88,7 @@ def test_model_wins_over_gazetteer():
         ("yeni ofis Akasya İş Merkezi'nde", ["Akasya İş Merkezi"]),
         ("kargo zümrüt apartmanı'na gelsin", ["zümrüt apartmanı"]),
         ("Kanyon AVM'de buluşalım", ["Kanyon AVM"]),
+        ("Toplantı Akasya İş Merkezi'nde", ["Akasya İş Merkezi"]),
         ("kurye yan apartmana bıraktı", []),
         ("evin apartmanı eski", []),
         ("çocuk parkında oynuyorlar", []),

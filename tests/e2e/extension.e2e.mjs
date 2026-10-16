@@ -160,5 +160,23 @@ await step("zengin metin alanı (contenteditable, Claude benzeri) da maskelenir"
   assert.ok(sent.includes("[TELEFON_1]") && !sent.includes(PHONE.slice(0, 4) + " 123"), sent);
 });
 
+if (process.env.TURKCE_DLP_NER_MODEL_DIR) {
+  await step("model ile: kişi adı eki dışarıda maskelenir ve yanıtta doğru çekimlenir", async () => {
+    await page.goto(`${MOCK}/c/model0001abc`);
+    await page.waitForTimeout(1500);
+    await page.fill("#prompt-textarea", "Toplantı notunu Ayşe Demir'e ilet, Murat Kaya da gelsin.");
+    await page.click("[data-testid='send-button']");
+    await page.locator("#turkce-dlp-preview").getByRole("button", {name: "Maskele ve gönder"}).click();
+    await page.waitForFunction(() => window.__sent.length === 1);
+    const sent = (await page.evaluate(() => window.__sent))[0];
+    assert.ok(sent.includes("[KİŞİ_1]'e ilet") && sent.includes("[KİŞİ_2]") && !sent.includes("Ayşe"), sent);
+    const reply = page.locator("[data-message-author-role='assistant']").first();
+    await reply.waitFor();
+    await page.waitForTimeout(300);
+    const text = await reply.textContent();
+    assert.ok(text.includes("Ayşe Demir'e") && text.includes("Murat Kaya'ya"), text);
+  });
+}
+
 console.log(results.join("\n"));
 await context.close();

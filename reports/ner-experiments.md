@@ -244,3 +244,16 @@ sealed2'de görülen iki sorun için, aynı v4 modelleriyle (3 seed) yalnızca b
 **Yorum.** Geliştirme setinde gerileme yok, küçük kazanç var. sealed2'de büyük iyileşme görülüyor (sızan kişisel veri token'ı %2,9 → %0,6); ancak değişiklikler bu setteki hata türleri görülerek tasarlandığı için bu sonuç **kör değildir ve iyimser kabul edilmelidir**. Resmî sealed2 sonucu v4.0 değeridir. Adres F1'i hâlâ yalnız modelin gerisinde (0,895 vs 0,957): birleşim kapsamayı artırıyor ama sınır uyumunu tam çözmüyor; adres kuralının önceliğinin güven tabanlı hâle getirilmesi gelecek iştir.
 
 **Üretim yapılandırması (final):** BERTurk + augmented-v4 (seed 42) + kural katmanı + yer adı sözlüğü + tesis kuralı + adres birleşimi + son işlem; ayrıca kural tabanlı TCKN, IBAN, kart, e-posta, **telefon** ve gizli anahtar tespiti.
+
+## Üretim–değerlendirme tutarlılığı (model yerelde çalıştırılırken bulundu)
+
+Model ilk kez yerel servise bağlandığında üretimdeki çıkarımın değerlendirmeden farklı sözcük bölütlemesi kullandığı görüldü:
+HF `pipeline` kesme işaretinde sözcüğü bölüyordu ("Market" + "'" + "in"); model eğitimde eklere etiket görmediği için "in"
+parçasını ayrı bir kurum sanabiliyordu. Çıkarım, eğitim ve değerlendirmedeki kurala birebir uyan sözcük düzeyinde bir
+tahminciyle (`WordLevelPredictor`: sözcükler `is_split_into_words` ile verilir, etiket ilk alt parçadan alınır, uzun metin
+örtüşmeli sözcük pencerelerine bölünür) değiştirildi. Kesme işaretinden sonraki ek de varlığın dışında bırakılır
+("Ayşe Demir'e" → "Ayşe Demir"), böylece aynı kişi farklı eklerle aynı yer tutucuyu alır.
+
+Doğrulama: geliştirme setinin 159 cümlesinin tamamında üretim tahmini, değerlendirme betiğinin tahminiyle varlık düzeyinde
+aynı (0 fark). Raporlanan sayılar artık doğrudan üretim davranışını temsil eder. Yerel CPU'da tek mesajlık tespit süresi
+ısınmadan sonra ~50 ms (seed 42, v4.1 boru hattı).

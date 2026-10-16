@@ -26,7 +26,7 @@ from collections.abc import Iterable, Iterator
 
 from ._gazetteer_data import load_gazetteer
 from .ner import EntitySpan
-from .rules_ner import TOKEN_RE, _key
+from .rules_ner import NON_NAME_WORDS, TOKEN_RE, _key
 
 # Eki bitişik yazılmış yer adları için (ASCII katlanmış anahtar uzayında), uzundan kısaya.
 SUFFIXES = tuple(
@@ -362,7 +362,12 @@ class FacilityRecognizer:
         cursor = head_start - 1
         while cursor >= 0 and len(words) < 3:
             token = tokens[cursor][0]
-            if not _is_word(token) or _base(token) != token or lowered[cursor] in FACILITY_STOP:
+            if (
+                not _is_word(token)
+                or _base(token) != token
+                or lowered[cursor] in FACILITY_STOP
+                or _key(token) in NON_NAME_WORDS  # "Toplantı Akasya İş Merkezi'nde": cümle başı sözcük ad değil
+            ):
                 break
             words.append(cursor)
             cursor -= 1

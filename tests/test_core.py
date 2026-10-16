@@ -281,7 +281,9 @@ def test_huggingface_ner_adapter_maps_aggregated_entity_offsets():
     assert [(item.type, item.value) for item in found] == [("PERSON", "Ayşe Yılmaz")]
 
 
-def test_local_ner_loader_uses_offline_weights_and_overlapping_windows(monkeypatch):
+def test_local_ner_loader_uses_offline_weights_and_word_level_predictor(monkeypatch):
+    from turkce_llm_dlp import ner as ner_module
+
     calls = {}
 
     class Tokenizer:
@@ -295,20 +297,61 @@ def test_local_ner_loader_uses_offline_weights_and_overlapping_windows(monkeypat
         calls["model"] = (path, kwargs)
         return object()
 
-    def make_pipeline(*args, **kwargs):
-        calls["pipeline"] = (args, kwargs)
-        return lambda _text: []
-
     fake_transformers = SimpleNamespace(
         AutoTokenizer=SimpleNamespace(from_pretrained=load_tokenizer),
         AutoModelForTokenClassification=SimpleNamespace(from_pretrained=load_model),
-        pipeline=make_pipeline,
     )
     monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
-    _create_local_predictor("/tmp/local-model", -1)
+    monkeypatch.setattr(ner_module, "WordLevelPredictor", lambda tok, model, device: ("word-level", tok, model, device))
+    predictor = _create_local_predictor("/tmp/local-model", -1)
     assert calls["tokenizer"][1]["local_files_only"] is True
     assert calls["model"][1]["local_files_only"] is True
-    assert calls["pipeline"][1]["stride"] == 64
+    assert predictor[0] == "word-level"
+
+
+def test_word_level_predictor_labels_whole_words_and_windows_long_text():
+    torch = pytest.importorskip("torch")
+    from turkce_llm_dlp.ner import WordLevelPredictor
+
+    labels = {0: "O", 1: "B-ORG", 2: "I-ORG", 3: "B-PERSON"}
+
+    class Encoded(dict):
+        def __init__(self, ids, word_ids):
+            super().__init__(input_ids=torch.tensor([ids]))
+            self._word_ids = word_ids
+
+        def word_ids(self, _index):
+            return self._word_ids
+
+    class Tokenizer:
+        model_max_length = 512
+
+        def __call__(self, words, **_kwargs):
+            # Her sözcük 2 alt parça: ilk parça sözcüğün etiketini taşır; "'in" gibi ek parçası ikinci parçadır
+            ids, word_ids = [0], [None]
+            vocab = {"Kardeşler": 1, "Marketi'nin": 2, "Ayşe": 3}
+            for index, word in enumerate(words):
+                ids += [vocab.get(word, 5), 99]
+                word_ids += [index, index]
+            return Encoded(ids + [0], word_ids + [None])
+
+    class Model(torch.nn.Module):
+        config = SimpleNamespace(id2label=labels)
+
+        def forward(self, input_ids):
+            logits = torch.zeros((1, input_ids.shape[1], 4))
+            for position, token in enumerate(input_ids[0].tolist()):
+                # ilk alt parça sözcüğün etiketi (1 B-ORG, 2 I-ORG, 3 B-PERSON); ek parçası (99) bilinçli olarak
+                # B-PERSON: eğitimde hiç etiketlenmediği için üretimde dikkate alınmamalı
+                label = 3 if token == 99 else (token if token in (1, 2, 3) else 0)
+                logits[0, position, label] = 5.0
+            return SimpleNamespace(logits=logits)
+
+    text = "akşam Kardeşler Marketi'nin önünde Ayşe ile buluşuruz"
+    predictor = WordLevelPredictor(Tokenizer(), Model(), window_words=4, overlap_words=2)
+    rows = predictor(text)
+    found = [(r["entity_group"], text[r["start"] : r["end"]]) for r in rows]
+    assert found == [("ORG", "Kardeşler Marketi'nin"), ("PERSON", "Ayşe")]
 
 
 def test_ner_inference_timeout_terminates_worker_and_uses_rules(monkeypatch, tmp_path, caplog):
@@ -616,3 +659,23 @@ def test_same_phone_in_different_formats_gets_one_placeholder():
 
     masked, _ = MaskingSession().mask("tel 0532 123 45 67, yine +90 (532) 123-45-67")
     assert masked.count("<PHONE_1>") == 2
+
+
+def test_model_span_drops_apostrophe_suffix_so_same_person_gets_one_placeholder():
+    from turkce_llm_dlp.masking import MaskingSession
+    from turkce_llm_dlp.ner import DetectionPipeline, EntitySpan
+
+    text = "Ayşe Demir'e söyle, Ayşe Demir'in dosyası hazır"
+
+    class Model:
+        def recognize(self, _text):
+            first, second = text.index("Ayşe"), text.rindex("Ayşe")
+            return [
+                EntitySpan("PERSON", first, first + len("Ayşe Demir'e")),
+                EntitySpan("PERSON", second, second + len("Ayşe Demir'in")),
+            ]
+
+    found = DetectionPipeline([Model()]).detect(text)
+    assert [d.value for d in found] == ["Ayşe Demir", "Ayşe Demir"]
+    masked, _ = MaskingSession().mask(text, found)
+    assert masked == "<PERSON_1>'e söyle, <PERSON_1>'in dosyası hazır"

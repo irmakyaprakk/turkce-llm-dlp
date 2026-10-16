@@ -150,7 +150,7 @@ def test_org_compounds_city_prefix_and_subunit_are_merged():
     ) == [("ORG", "Sosyal Güvenlik Kurumu Konya İl Müdürlüğü")]
     # Kurumsal sözcükle bitmeyen devam birleştirilmez; şehir + marka da birleşmez.
     assert run("Ankara'da Ankara Ticaret Odası", [("LOCATION", "Ankara'da"), ("ORG", "Ankara Ticaret Odası")]) == [
-        ("LOCATION", "Ankara'da"),
+        ("LOCATION", "Ankara"),  # kesme işaretli ek varlığa dahil değil
         ("ORG", "Ankara Ticaret Odası"),
     ]
     assert run("Ankara Getir deposu", [("LOCATION", "Ankara"), ("ORG", "Getir")]) == [
