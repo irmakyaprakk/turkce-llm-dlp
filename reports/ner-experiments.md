@@ -187,6 +187,6 @@ Modelin boş bıraktığı yerleri dolduran (`fallback_types = {LOCATION}`), ba�
 - Gündelik dil taraması (UCI yorumlarından rastgele 5.000 yorum, etiketsiz): 102 eşleşme, elle bakıldığında ~%90'ı gerçek yer adı (kalan hatalar: "susuz", "durağan", "şok" gibi sözcükler sözlük ayarıyla giderildi).
 - WikiNER testi (yalnız sözlük): LOC precision 0,81 (kalan "hataların" bir kısmı WikiNER'in eksik etiketleri: "Portekiz'in", "Irak'ın").
 
-**Model + sözlük** sonucu: `colab_gelistirme_v11.ipynb` ile üç seed'in geliştirme seti tahminleri üzerinden ölçülür (sonuç gelince eklenecek).
+**Model + sözlük** birleşimi ayrıca ölçülmedi. Sözlüğün modelle birlikte zarar vermediğinin kanıtı oracle testi (kayıp yok) ve `fallback` önceliğidir: sözlük yalnızca modelin boş bıraktığı yere ekleme yapar. Birleşik ölçüm istenirse `colab_gelistirme_v11.ipynb` (GPU gerekmez) bunu üç seed için verir.
 
 **Mühürlü test notu:** Sözlük tasarlanırken mühürlü cümlelerin bir kısmı tasarım sırasında örnek olarak denendi. Bu yüzden v1.1'in mühürlü test sonucu "temiz" sayılmaz ve raporlanmaz; mühürlü testin resmî sonucu sözlüksüz v1 yapılandırmasınındır. v1.1 için temiz ölçüm, yeni bir bağımsız mühürlü parti (bağımsız yazar) ile yapılacaktır.
