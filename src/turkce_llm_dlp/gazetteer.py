@@ -305,3 +305,80 @@ class LocationGazetteer:
             return True
         # Önceki sözcük cümle başındaysa ("Bugün Kadıköy", "Our Gaziantep") büyük harfi bilgi taşımaz.
         return index > 0 and index not in starts and (index - 1) not in starts and foreign_capital(index - 1)
+
+
+# ---------------------------------------------------------------------------
+# Tesis / bina adları (anotasyon kuralı: numarasız bina, apartman, plaza, park, kampüs adı LOC'tur)
+# ---------------------------------------------------------------------------
+
+_FACILITY_HEAD = re.compile(r"^(apartman\w*|apt|plaza\w*|park[ıi]\w*|kampüs\w*|kampus\w*|pasaj\w*|rezidans\w*|avm)$")
+# Tamlama biçimi ("zümrüt apartmanı", "çınar parkında") adı belirtir; çıplak biçim ("apartmana", "kampüste")
+# yalnız büyük harfli ad ya da kesme işaretiyle kabul edilir ("kargo apartmana bırakıldı" değil)
+_FACILITY_COMPOUND = re.compile(r"^(apartman[ıi]|park[ıi]|kampüsü|kampusu|pasajı|pasaji|plaza|apt|rezidans|avm)")
+_GENITIVE = re.compile(r"(ın|in|un|ün)$")
+_FACILITY_COMPOUND_FIRST = frozenset({"iş", "is", "alışveriş", "alisveris"})
+_FACILITY_COMPOUND_HEAD = re.compile(r"^(merkez\w*|han[ıi]\w*)$")
+# Ad yerine geçmeyen niteleyiciler ("yan apartman", "eski kampüs", "çocuk parkı")
+FACILITY_STOP = frozenset(
+    "bu şu o yan karşı eski yeni bizim sizin onların benim senin her bir aynı büyük küçük arka ön üst alt "
+    "çocuk oyun spor milli millet şehir kent ana merkez toplu sosyal halk ve ile de da ki en tüm diğer öbür "
+    "ilk son hangi şirket okul site sitenin otopark".split()
+)
+
+
+class FacilityRecognizer:
+    """Bina / tesis adlarını LOCATION olarak bulur; kurum tahmininin önüne geçer.
+
+    Anotasyon kuralı (ANNOTATION_RULES.md): numarasız tek başına bina/apartman/plaza/park/kampüs adı LOC'tur;
+    numaralı adresin hemen önündeyse adresin parçasıdır (ner.merge_facility_into_address).
+    """
+
+    authoritative_types = frozenset({"LOCATION"})
+
+    def recognize(self, text: str) -> list[EntitySpan]:
+        tokens = [(m.group(), m.start(), m.end()) for m in TOKEN_RE.finditer(text)]
+        lowered = [_key_exact(_base(tok)) for tok, _, _ in tokens]
+        spans: list[EntitySpan] = []
+        for index, (token, start, _end) in enumerate(tokens):
+            head = lowered[index]
+            head_start = index
+            if _FACILITY_COMPOUND_HEAD.match(head) and index > 0 and lowered[index - 1] in _FACILITY_COMPOUND_FIRST:
+                head_start = index - 1
+            elif not _FACILITY_HEAD.match(head):
+                continue
+            has_apostrophe = _base(token) != token
+            first = self._name_start(tokens, lowered, head_start)
+            if first is None:
+                continue
+            capital = any(tokens[i][0][:1].isupper() for i in range(first, head_start))
+            if head_start == index and not _FACILITY_COMPOUND.match(head) and not (capital or has_apostrophe):
+                continue
+            spans.append(EntitySpan("LOCATION", tokens[first][1], start + len(_base(token))))
+        return spans
+
+    @staticmethod
+    def _name_start(tokens, lowered, head_start):
+        words = []
+        cursor = head_start - 1
+        while cursor >= 0 and len(words) < 3:
+            token = tokens[cursor][0]
+            if not _is_word(token) or _base(token) != token or lowered[cursor] in FACILITY_STOP:
+                break
+            words.append(cursor)
+            cursor -= 1
+        if not words:
+            return None
+        capital_run = []
+        for i in words:
+            if tokens[i][0][:1].isupper():
+                capital_run.append(i)
+            else:
+                break
+        if capital_run:
+            return capital_run[-1]
+        # Küçük harfli adda sınır belirsiz: yalnız tek sözcük ("kargo zümrüt apartmanı" → "zümrüt apartmanı");
+        # ilgi ekli niteleyici ad değildir ("evin apartmanı", "okulun parkı")
+        word = tokens[words[0]][0]
+        if len(word) < 3 or (len(word) >= 4 and _GENITIVE.search(lowered[words[0]])):
+            return None
+        return words[0]

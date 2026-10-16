@@ -436,11 +436,94 @@ def merge_org_compounds(text: str, detections: list[Detection]) -> list[Detectio
     return items
 
 
+_DETACHED_SUFFIX_RE = re.compile(r"\s+(?:a|e|ya|ye|da|de|ta|te|dan|den|tan|ten|daki|deki)$", re.IGNORECASE)
+
+
+def _union_addresses(
+    text: str, authoritative: list[Detection], candidates: list[Detection], rules: list[Detection]
+) -> tuple[list[Detection], list[Detection]]:
+    """Öncelikli ADDRESS span'ı, çakıştığı aday ADDRESS span'larıyla birleşir (en geniş kapsam).
+
+    Birleşim deterministik kural tespitlerine (TCKN, IBAN, telefon...), ";" ya da satır sonuna taşmaz.
+    """
+    model_addresses = [c for c in candidates if c.type == "ADDRESS"]
+    if not model_addresses:
+        return authoritative, candidates
+    absorbed: set[int] = set()
+    result: list[Detection] = []
+    for item in authoritative:
+        if item.type == "ADDRESS":
+            low = max((r.end for r in rules if r.end <= item.start), default=0)
+            previous_separator = max(text.rfind(";", 0, item.start), text.rfind("\n", 0, item.start))
+            low = max(low, previous_separator + 1)
+            high = min((r.start for r in rules if r.start >= item.end), default=len(text))
+            # ";" ve satır sonu ayrı kayıtları ayırır (bkz. merge_adjacent_spans)
+            separator = re.search(r"[;\n]", text[item.end :])
+            if separator:
+                high = min(high, item.end + separator.start())
+            start, end = item.start, item.end
+            grew = True
+            while grew:
+                grew = False
+                for other in model_addresses:
+                    if id(other) not in absorbed and other.start < end and other.end > start:
+                        start, end = max(low, min(start, other.start)), min(high, max(end, other.end))
+                        absorbed.add(id(other))
+                        grew = True
+            # Ayrı yazılmış hâl eki adrese ait değildir: "... trabzon a bırak" → "... trabzon"
+            detached = _DETACHED_SUFFIX_RE.search(text[start:end])
+            if detached and detached.start() > 0:
+                end = start + detached.start()
+            item = Detection("ADDRESS", start, end, text[start:end])
+        result.append(item)
+    kept = [c for c in candidates if id(c) not in absorbed]
+    return result, kept
+
+
+# Numarasız tesis/bina adının son sözcüğü ("Zümrüt Apartmanı", "Çınar Plaza", "Akasya İş Merkezi")
+FACILITY_HEAD_RE = re.compile(
+    r"(apartman\w*|apt|plaza\w*|park[ıi]\w*|kampüs\w*|kampus\w*|pasaj\w*|rezidans\w*|avm"
+    r"|(?:iş|is|alışveriş|alisveris) (?:merkez\w*|han[ıi]\w*))$",
+    re.IGNORECASE,
+)
+
+
+def merge_facility_into_address(text: str, detections: list[Detection]) -> list[Detection]:
+    """Bina/tesis adı (LOC) hemen ardından gelen açık adresle tek ADDRESS olur.
+
+    Anotasyon kuralı: numaralı adresin önündeki bina bilgisi adresin parçasıdır
+    ("Gül Apartmanı, Kiraz Sokak No 21, Kayseri"). Arada yalnız boşluk / virgül olabilir.
+    """
+    items = sorted(detections, key=lambda d: d.start)
+    out: list[Detection] = []
+    index = 0
+    while index < len(items):
+        item = items[index]
+        nxt = items[index + 1] if index + 1 < len(items) else None
+        if (
+            nxt is not None
+            and item.type == "LOCATION"
+            and nxt.type == "ADDRESS"
+            and FACILITY_HEAD_RE.search(re.split(r"['’]", item.value)[0].strip())
+            and text[item.end : nxt.start].strip(" ,") == ""
+            and "\n" not in text[item.end : nxt.start]
+        ):
+            out.append(Detection("ADDRESS", item.start, nxt.end, text[item.start : nxt.end]))
+            index += 2
+            continue
+        out.append(item)
+        index += 1
+    return out
+
+
 class DetectionPipeline:
     """Combine deterministic rule matches with optional NER recognizers."""
 
-    def __init__(self, recognizers: Iterable[EntityRecognizer] = ()):
+    def __init__(self, recognizers: Iterable[EntityRecognizer] = (), *, address_union: bool = True):
         self.recognizers = tuple(recognizers)
+        # Öncelikli (kural) adres ile çakışan model adresi birleşimle (en geniş kapsam) çözülür;
+        # DLP'de eksik maskeleme fazladan maskelemeden pahalıdır. False: v1 davranışı (kural span'ı aynen).
+        self.address_union = address_union
         self._failure_logged: set[int] = set()
 
     def detect(self, text: str) -> list[Detection]:
@@ -491,6 +574,8 @@ class DetectionPipeline:
                 else:
                     candidates.append(item)
 
+        if self.address_union:
+            authoritative, candidates = _union_addresses(text, authoritative, candidates, rules)
         # Deterministic rules take precedence over model spans. Model spans
         # that overlap each other are resolved longest-first at each position.
         ordered = sorted(authoritative, key=lambda d: (d.start, -(d.end - d.start), d.type))
@@ -501,6 +586,8 @@ class DetectionPipeline:
                 selected.append(item)
         ner_items = [d for d in selected if d not in rules]
         merged = merge_org_compounds(text, ner_items)
+        if self.address_union:
+            merged = merge_facility_into_address(text, merged)
         # Birleştirme deterministik kural tespitleriyle (TCKN/IBAN...) çakışamaz.
         merged = [d for d in merged if not any(d.start < r.end and d.end > r.start for r in rules)]
         return sorted([*rules, *merged], key=lambda d: d.start)

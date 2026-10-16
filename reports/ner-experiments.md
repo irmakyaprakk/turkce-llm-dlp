@@ -197,3 +197,29 @@ Modelin boş bıraktığı yerleri dolduran (`fallback_types = {LOCATION}`), ba�
 Sonuçlar birebir aynı. Sebep: geliştirme setinde model yer adlarının tamamını zaten maskeliyor (kapsama 1,000); kalan yer hataları tür ya da sınır hatası ("modada" → ORG) ve sözlük model önceliğine saygı duyduğu için bunları değiştirmez. Yani sözlük **zarar vermiyor**, ama bu sette **ölçülebilir bir kazanç da sağlamıyor**. Beklenen katkısı modelin yer adını hiç göremediği gayriresmî metinde (mühürlü bağımsız yazar grubunda yer kapsaması 0,417); ancak o set kirlendiği için bu katkı iddia edilmez. Sözlük, zararsız ve açıklanabilir bir güvenlik ağı olarak üretimde açık tutulur (`TURKCE_DLP_GAZETTEER=0` ile kapatılabilir).
 
 **Mühürlü test notu:** Sözlük tasarlanırken mühürlü cümlelerin bir kısmı tasarım sırasında örnek olarak denendi. Bu yüzden v1.1'in mühürlü test sonucu "temiz" sayılmaz ve raporlanmaz; mühürlü testin resmî sonucu sözlüksüz v1 yapılandırmasınındır. Yeni bir bağımsız mühürlü parti yazılmadığından v1.1'in etkisi yalnızca geliştirme setinde raporlanır; bu sonuç iyimser kabul edilmelidir (geliştirme seti hata analizinde kullanıldı).
+
+## v4 — gündelik dil turu ve mühürlü test 2 (sealed2)
+
+**Veri:** augmented-v4 = v3 + 12.000 gündelik dil cümlesi (`docs/data-augmentation.md`), sealed2 toplanmadan önce donduruldu (commit `fbb5f18`).
+**Test:** sealed2 — proje sahibinin çevresinden toplanan 100 mesaj (69 kişi, 62 adres, 35 kurum, 28 yer). Bir kez çalıştırıldı;
+sonuca göre ayar yapılmadı. Önceden belirlenen karar kuralı: "v4 sealed2'de v3'ten iyiyse üretimde v4".
+
+| sealed2 (3 seed) | v3 hibrit | **v4 hibrit** | v3 yalnız model | v4 yalnız model |
+|---|---|---|---|---|
+| Genel F1 | 0,857 ± 0,012 | **0,865 ± 0,011** | 0,877 ± 0,003 | 0,880 ± 0,020 |
+| **Token kapsama (DLP)** | 0,953 ± 0,014 | **0,971 ± 0,005** | 0,969 ± 0,022 | 0,987 ± 0,004 |
+| Kurum F1 / kapsama | 0,807 / 0,866 | **0,858 / 0,963** | 0,803 / 0,915 | 0,837 / 0,992 |
+| Kişi F1 | 0,995 | **1,000** | 0,995 | 1,000 |
+| Yer F1 / kapsama | 0,453 / 0,820 | 0,354 / 0,887 | 0,454 / 0,747 | 0,335 / 0,847 |
+| Adres F1 / kapsama | 0,887 / 0,976 | 0,887 / 0,977 | 0,952 / 1,000 | 0,957 / 1,000 |
+
+Geliştirme setinde (3 seed, hibrit): v3 0,971 → v4 0,973 F1; kapsama 0,993 → 0,996 (gerileme yok).
+
+**Karar:** Üretimde **v4** (karar kuralı sağlandı). Seed'ler geliştirme setinde eşit (std 0,000) olduğundan varsayılan seed 42 kullanılır; seçim test setine bakılarak yapılmadı.
+
+**Yorum.**
+
+1. **v4'ün kazancı DLP metriğinde açık:** sızan kişisel veri token'ı %4,7'den %2,9'a indi (hibrit kapsama 0,953 → 0,971). En büyük iyileşme hedeflenen alanda, yerel işletme/kurum adlarında (kurum kapsaması 0,866 → 0,963). Seed oynaması da azaldı (std 0,014 → 0,005).
+2. **Yer F1'i düşük (0,35–0,45) ama kapsama yüksek (0,85–0,89):** Yerler çoğunlukla maskeleniyor, fakat tür/sınır altın etiketle uyuşmuyor. Bunun önemli bir nedeni, sealed2 etiketlenirken alınan yeni karar: numarasız bina/apartman/plaza/park/kampüs adları LOC sayıldı ("çınar plaza", "zümrüt apartmanı"). Eğitim verisinde bu türde örnek yok; model bunları çoğunlukla kurum sanıyor ya da kısmen işaretliyor. Yer sayısı az (28) olduğu için bu satırın oynaklığı yüksek (std 0,09–0,18).
+3. **Bu sette kural katmanı zarar veriyor (bulgu):** Yalnız model, hibritten daha iyi (v4: 0,880 vs 0,865 F1; 0,987 vs 0,971 kapsama). Kayıp adreste: hibritte adres sonucu seed'den bağımsız (std 0,000), çünkü adres kuralı öncelikli (`authoritative`). Model mükemmel olsa bile (oracle) hibrit bu sette 0,953 F1'de kalıyor; yani sınırı kural katmanı belirliyor. Bu setin adres biçimi ("…no 12, kadıköy, istanbul; tc …", küçük harf, virgüllü il/ilçe) kural katmanının tasarlandığı biçimden farklı. Geliştirme setinde ve ilk mühürlü testte kural katmanı katkı sağlamıştı. **Bu sete bakılarak kural değiştirilmedi;** önceden belirlenen hibrit yapılandırma korunur. Gelecek iş: adres kuralının önceliğini modelle güven tabanlı birleştirmek ve bunu yeni, bağımsız bir sette ölçmek.
+4. **Test setinin sınırlılığı:** sealed2 mesajları büyük ölçüde aynı kalıbı izliyor ("X'e söyle, …; adres: … no N, şehir; tc …, tel …"), yazım hatası azdır. Sonuçlar gündelik yazımı temsil eder ama gerçek mesajlaşmanın tüm dağınıklığını kapsamaz.

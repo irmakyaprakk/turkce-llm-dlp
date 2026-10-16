@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from .gateway import DemoProvider, Gateway, OpenAICompatibleProvider, UpstreamUnavailable
-from .gazetteer import LocationGazetteer
+from .gazetteer import FacilityRecognizer, LocationGazetteer
 from .masking import process_demo
 from .ner import DetectionPipeline, HuggingFaceNERRecognizer
 from .policy import Policy
@@ -95,6 +95,7 @@ def _rule_recognizers() -> list:
         recognizers.append(RuleEntityRecognizer())
     if os.environ.get("TURKCE_DLP_GAZETTEER", "1").strip() != "0":
         recognizers.append(LocationGazetteer())
+        recognizers.append(FacilityRecognizer())
     return recognizers
 
 

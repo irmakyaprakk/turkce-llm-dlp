@@ -425,11 +425,11 @@ def test_invalid_ner_offsets_fail_closed_before_upstream():
 
 
 def test_api_ner_model_is_optional_and_load_failure_falls_back(monkeypatch, caplog):
-    from turkce_llm_dlp.gazetteer import LocationGazetteer
+    from turkce_llm_dlp.gazetteer import FacilityRecognizer, LocationGazetteer
     from turkce_llm_dlp.rules_ner import RuleEntityRecognizer
 
     def only_rules(detector):
-        return [type(r) for r in detector.recognizers] == [RuleEntityRecognizer, LocationGazetteer]
+        return [type(r) for r in detector.recognizers] == [RuleEntityRecognizer, LocationGazetteer, FacilityRecognizer]
 
     monkeypatch.delenv("TURKCE_DLP_NER_MODEL_DIR", raising=False)
     assert only_rules(api_module._configured_detector())

@@ -63,7 +63,34 @@ def test_pipeline_precedence_rule_address_wins_model_org_wins():
     found = [(d.type, d.value) for d in DetectionPipeline([RuleEntityRecognizer(), Model()]).detect(text)]
     # Model "Kadıköy Belediyesi" buldu; anotasyon kuralı gereği alt birim de kuruma katılır.
     assert ("ORG", "Kadıköy Belediyesi Fen İşleri Müdürlüğü") in found
-    assert ("ADDRESS", "karsiyaka mah 5011 sk no 12 trabzon") in found  # adreste kural öncelikli
+    assert ("ADDRESS", "karsiyaka mah 5011 sk no 12 trabzon") in found  # ayrı yazılmış "a" eki dışarıda
+
+
+def test_rule_and_model_addresses_are_unioned_but_not_into_tckn():
+    from turkce_llm_dlp.ner import DetectionPipeline, EntitySpan
+
+    text = "kargo çınar sokak no 12, kadıköy, istanbul; tc 10000000146 tel yok"
+    start = text.index("çınar")
+
+    class Model:
+        def recognize(self, _text):
+            # Model il adını da kapsıyor, ama TCKN'ye kadar taşıyor
+            return [EntitySpan("ADDRESS", start, text.index(" tel"))]
+
+    found = [(d.type, d.value) for d in DetectionPipeline([RuleEntityRecognizer(), Model()]).detect(text)]
+    assert ("ADDRESS", "çınar sokak no 12, kadıköy, istanbul") in found
+    assert any(t == "TCKN" for t, _ in found)
+    old = DetectionPipeline([RuleEntityRecognizer(), Model()], address_union=False).detect(text)
+    assert [d.type for d in old].count("ADDRESS") == 1
+
+
+def test_facility_name_joins_following_address():
+    from turkce_llm_dlp.gazetteer import LocationGazetteer
+    from turkce_llm_dlp.ner import DetectionPipeline
+
+    text = "yeni adresim Gül Apartmanı, Kiraz Sokak No 21, Kayseri"
+    found = [(d.type, d.value) for d in DetectionPipeline([RuleEntityRecognizer(), LocationGazetteer()]).detect(text)]
+    assert found == [("ADDRESS", "Gül Apartmanı, Kiraz Sokak No 21, Kayseri")]
 
 
 def test_rule_org_fills_gap_when_model_finds_nothing():

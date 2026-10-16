@@ -22,6 +22,10 @@ Varlıklar `[[ETİKET|metin]]` biçiminde gösterilir. Kullanılan görünen eti
 | Kurum adı + büyük harfle yazılmış alt birim ("Yıldız Teknik Üniversitesi Makine Fakültesi", "Kadıköy Belediyesi Fen İşleri Müdürlüğü") | Alt birim dahil tamamı tek `ORG` (alt birim de tanımlayıcıdır; tek placeholder ile maskelenir). Küçük harfle yazılmış genel ifade ("kardiyoloji polikliniğine") dahil edilmez |
 | Kurum adının içindeki şehir/ilçe ("Antalya Kurumlar Vergi Dairesi", "Sosyal Güvenlik Kurumu Konya İl Müdürlüğü") | Ayrı `LOC` yapılmaz; tamamı tek `ORG` |
 | `Dr.`, `Sayın`, `Bey` gibi hitap/unvan | Dışarıda bırak; yalnızca kişi adını `PER` işaretle |
+| Numarasız tek başına bina / tesis adı: apartman, plaza, iş merkezi, iş hanı, pasaj, park, kampüs, AVM, rezidans ("Zümrüt Apartmanı", "Çınar Plaza", "Beşiktaş kampüsü") | Baş sözcük dahil `LOC` |
+| Numaralı adresin hemen önündeki bina adı ("Gül Apartmanı, Kiraz Sokak No 21, Kayseri") | Adresin parçası; tamamı tek `ADRES` |
+| İşletme / kurum (eczane, kafe, fırın, tıp merkezi, klinik, kütüphane, şirket) | `ORG` (bina değil kuruluştur) |
+| Betimleyici ifade ("göl manzaralı kafe", "sağdaki mavi bina") | Etiketsiz |
 
 Kesme işaretinden sonraki ek varlık span'ına girmez. Örneğin `[[LOC|Kadıköy]]'deki` ve `[[ADRES|... No:5]]'e`.
 

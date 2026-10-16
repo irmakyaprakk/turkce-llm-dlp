@@ -79,3 +79,24 @@ def test_model_wins_over_gazetteer():
     text = "Ceyhan aradı mı?"
     detections = DetectionPipeline([Model(), LocationGazetteer()]).detect(text)
     assert [(d.type, d.value) for d in detections] == [("PERSON", "Ceyhan")]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("kargo Zümrüt Apartmanı'na gelsin", ["Zümrüt Apartmanı"]),
+        ("yeni ofis Akasya İş Merkezi'nde", ["Akasya İş Merkezi"]),
+        ("kargo zümrüt apartmanı'na gelsin", ["zümrüt apartmanı"]),
+        ("Kanyon AVM'de buluşalım", ["Kanyon AVM"]),
+        ("kurye yan apartmana bıraktı", []),
+        ("evin apartmanı eski", []),
+        ("çocuk parkında oynuyorlar", []),
+        ("arabayı park ettim", []),
+        ("sağlık merkezine git", []),
+        ("web sitesi açılmıyor", []),
+    ],
+)
+def test_facility_recognizer(text, expected):
+    from turkce_llm_dlp.gazetteer import FacilityRecognizer
+
+    assert [text[s.start : s.end] for s in FacilityRecognizer().recognize(text)] == expected
