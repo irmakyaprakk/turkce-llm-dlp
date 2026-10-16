@@ -1,0 +1,106 @@
+# MÜHÜRLÜ TEST 2 (sealed2) — proje sahibinin arkadaşlarından toplanan 100 mesaj (insan yazımı olarak beyan edildi).
+# Kaynak: kaynak/ham.txt (RTF) → kaynak/ham_metin.txt. Kişisel veriler yazarlarca uydurulmuştur (TC/telefon yer tutucu).
+# Eğitim verisi augmented-v4, bu dosya oluşturulmadan önce donduruldu (commit fbb5f18).
+# Kurallar: training/ner/ANNOTATION_RULES.md. Ek karar (bu setle yazıldı): numarasız tek başına bina/apartman/plaza/
+# kampüs/park adı LOC; numaralı adresin önündeki bina adı ADRES'e dahil; "göl manzaralı kafe" gibi betimleyici ifade etiketsiz.
+# Bu dosya üzerinde hata analizi veya ayar YAPILMAZ.
+toplanan	[[PER|ayşe]]'ye yaz: kargo yarın [[ADRES|çınar sokak no 12, kadıköy]]'e gelecek; tc 00000000000, tel 05XX 000 00 01.
+toplanan	[[PER|mehmet]], [[ORG|lale fırını]]'nın yanındaki [[LOC|mavi apartman]]'da buluşalım, adres: [[ADRES|gül sokak no 8, izmir]]; tc 12345678901, tel 05XX 000 00 02.
+toplanan	hocam, ödevi bugün gönderdim; tc 00000000000, tel 05XX 000 00 03.
+toplanan	[[PER|zeynep]]'e söyle, kargoyu [[ORG|yıldız kırtasiye]]'den alsın; adres: [[ADRES|menekşe caddesi no 24, ankara]]; tc 12345678901, tel 05XX 000 00 04.
+toplanan	[[PER|burak]], randevumuz [[ORG|güneş tıp merkezi]]'nde saat üçte; adres: [[ADRES|çamlıca sokak no 5, bursa]]; tc 00000000000, tel 05XX 000 00 05.
+toplanan	bugün toplantı biraz uzayacak, geç kalabilirim.
+toplanan	[[PER|selin]]'e kahveyi [[ORG|papatya kafe]]'den alacağımı yaz; adres: [[ADRES|limon sokak no 7, antalya]]; tc 12345678901, tel 05XX 000 00 06.
+toplanan	[[PER|murat]], yeni ofisimiz [[LOC|akasya iş merkezi]]'nde, adresi de [[ADRES|inci caddesi no 31, eskişehir]]; tc 00000000000, tel 05XX 000 00 07.
+toplanan	hocam, yarınki görüşmeyi [[LOC|nilüfer kampüsü]]'nde yapabilir miyiz? tc 12345678901, tel 05XX 000 00 08.
+toplanan	[[PER|elif]], kargo [[LOC|zümrüt apartmanı]]'na gelsin; adres: [[ADRES|dere sokak no 19, trabzon]]; tc 00000000000, tel 05XX 000 00 09.
+toplanan	[[PER|emre]]'ye yaz, [[ORG|yıldırım oto servis]]'ten arabayı saat beşte alacağız; adres: [[ADRES|sanayi caddesi no 40, konya]]; tc 12345678901, tel 05XX 000 00 10.
+toplanan	toplantı notlarını akşam paylaşırım, şu an dışarıdayım.
+toplanan	[[PER|can]], adresim: [[ADRES|kuğu sokak no 16, karşıyaka, izmir]]; [[ORG|papatya market]]'in karşısındaki bina; tc 00000000000, tel 05XX 000 00 11.
+toplanan	[[PER|deniz]]'e söyle, siparişi [[ORG|nar çiçeği pastanesi]]'ne bırakmışlar; adres: [[ADRES|gülbahar caddesi no 9, istanbul]]; tc 12345678901, tel 05XX 000 00 12.
+toplanan	hocam, dosyayı [[PER|ayşe demir]] adına gönderdim; adres: [[ADRES|bulut sokak no 3, ankara]]; tc 00000000000, tel 05XX 000 00 13.
+toplanan	bugün hava çok sıcak, su almayı unutma.
+toplanan	[[PER|ece]], randevu [[ORG|lale güzellik salonu]]'nda; adres: [[ADRES|menekşe sokak no 14, mersin]]; tc 12345678901, tel 05XX 000 00 14.
+toplanan	[[PER|onur]]'a konum at: [[ORG|çınar eczanesi]], [[ADRES|çam caddesi no 22, adana]]; tc 00000000000, tel 05XX 000 00 15.
+toplanan	kargo teslimatı için beni arayabilirsiniz; adres: [[ADRES|inci apartmanı, yasemin sokak no 6, samsun]]; tc 12345678901, tel 05XX 000 00 16.
+toplanan	[[PER|merve]], yarın saat 10'da [[ORG|atlas yazılım]]'da olacağım; adres: [[ADRES|gökkuşağı caddesi no 18, istanbul]]; tc 00000000000, tel 05XX 000 00 17.
+toplanan	bugün biraz yoğunum, mesajına akşam dönerim.
+toplanan	[[PER|ali]]'ye söyle, dosyayı [[ORG|kıyı kitapçısı]]'na bırakmışım; adres: [[ADRES|sahil yolu no 45, muğla]]; tc 12345678901, tel 05XX 000 00 18.
+toplanan	hocam, sunumu [[PER|deniz yıldız]] adına yükledim; tc 00000000000, tel 05XX 000 00 19.
+toplanan	[[PER|derya]], buluşma yeri: [[ORG|portakal kafe]], [[ADRES|menekşe caddesi no 2, kayseri]]; tc 12345678901, tel 05XX 000 00 20.
+toplanan	siparişimi yanlış göndermişsiniz; lütfen [[PER|zeynep kaya]] adına, [[ADRES|lale sokak no 11, izmit]] adresine tekrar yollayın; tc 00000000000, tel 05XX 000 00 21.
+toplanan	sabah erkenden çıkacağım, anahtarı masaya bırak.
+toplanan	[[PER|kaan]]'a yaz, toplantı [[LOC|çınar plaza]]'da; adres: [[ADRES|güney sokak no 20, istanbul]]; tc 12345678901, tel 05XX 000 00 22.
+toplanan	[[PER|seda]], [[ORG|inci çiçekçilik]]'ten buket al; adres: [[ADRES|papatya caddesi no 4, denizli]]; tc 00000000000, tel 05XX 000 00 23.
+toplanan	randevuyu [[PER|ahmet yaman]] adına oluşturdum; adres: [[ADRES|yenişehir mahallesi, lale sokak no 13, diyarbakır]]; tc 12345678901, tel 05XX 000 00 24.
+toplanan	bugün dışarıda yemek yiyelim mi?
+toplanan	[[PER|melis]]'e söyle, kargo [[LOC|göl apartmanı]]'na gelsin; adres: [[ADRES|kiraz sokak no 10, sakarya]]; tc 00000000000, tel 05XX 000 00 25.
+toplanan	hocam, [[PER|elif arslan]]'ın formunu ekledim; adres: [[ADRES|bahar caddesi no 27, edirne]]; tc 12345678901, tel 05XX 000 00 26.
+toplanan	[[PER|serkan]], buluşma saatini [[ORG|çınar lokantası]]'nda altı olarak değiştirdim; adres: [[ADRES|pınar sokak no 8, bolu]]; tc 00000000000, tel 05XX 000 00 27.
+toplanan	internetim yine yavaşladı, birazdan yeniden bağlanırım.
+toplanan	[[PER|özge]], yeni adresim: [[ADRES|akasya sokak no 17, bornova, izmir]]; yakınında [[ORG|mavi market]] var; tc 12345678901, tel 05XX 000 00 28.
+toplanan	[[PER|eren]]'e söyle, kargo [[LOC|inci apartmanı]]'na bırakılmış; adres: [[ADRES|yıldız caddesi no 1, tekirdağ]]; tc 00000000000, tel 05XX 000 00 29.
+toplanan	şikâyet kaydını [[PER|ayla öz]] adına açın; ürün [[ORG|güneş elektronik]]'ten alındı, adres: [[ADRES|çam sokak no 26, ankara]]; tc 12345678901, tel 05XX 000 00 30.
+toplanan	yarınki planımız hâlâ geçerli mi?
+toplanan	[[PER|naz]], kitapları [[ORG|martı kütüphanesi]]'ne götür; adres: [[ADRES|deniz caddesi no 35, antalya]]; tc 00000000000, tel 05XX 000 00 31.
+toplanan	hocam, toplantıya [[PER|berk aksoy]] da katılacak; adres: [[ADRES|okul yolu no 5, manisa]]; tc 12345678901, tel 05XX 000 00 32.
+toplanan	[[PER|fatma]]'ya gönderilecek evraklar [[ADRES|zeytin sokak no 6, mudanya]] adresine gitsin; tc 00000000000, tel 05XX 000 00 33.
+toplanan	bugün kahve içmeye vaktim olmayacak.
+toplanan	[[PER|barış]], randevu [[ORG|lale diş kliniği]]'nde; adres: [[ADRES|şirin sokak no 15, gaziantep]]; tc 12345678901, tel 05XX 000 00 34.
+toplanan	kargo firmasına yaz: paketimi [[PER|deniz akın]] adına, [[ADRES|bulut apartmanı, çiçek sokak no 9, mersin]] adresine bırakın; tc 00000000000, tel 05XX 000 00 35.
+toplanan	[[PER|nisa]]'ya konum gönder: [[LOC|gökkuşağı parkı]], [[LOC|gül caddesi]], [[LOC|eskişehir]]; tc 12345678901, tel 05XX 000 00 36.
+toplanan	dosyayı kaydetmeyi unutma, sonra lazım olacak.
+toplanan	[[PER|cem]], yeni iş yeri [[ORG|mor menekşe tasarım]]; adres: [[ADRES|lale caddesi no 29, istanbul]]; tc 00000000000, tel 05XX 000 00 37.
+toplanan	hocam, [[PER|elif]]'in danışmanlık randevusu pazartesi; adres: [[LOC|yıldız kampüsü]], [[LOC|bursa]]; tc 12345678901, tel 05XX 000 00 38.
+toplanan	[[PER|aykut]]'a söyle, sipariş [[ORG|çamlıca market]]'ten alınacak; adres: [[ADRES|bahçe sokak no 12, rize]]; tc 00000000000, tel 05XX 000 00 39.
+toplanan	bugün erken yatmayı düşünüyorum.
+toplanan	[[PER|eylül]], kargo adresini güncelle: [[ADRES|ada apartmanı, sahil sokak no 4, foça]]; tc 12345678901, tel 05XX 000 00 40.
+toplanan	şirket içi toplantı [[ORG|doruk teknoloji]]'de yapılacak; adres: [[ADRES|güneş caddesi no 17, ankara]]; tc 00000000000, tel 05XX 000 00 41.
+toplanan	hocam, raporu [[PER|mert yılmaz]] adına ilettim; tc 12345678901, tel 05XX 000 00 42.
+toplanan	[[PER|nergis]]'e söyle, buluşma yeri [[LOC|lale parkı]]'nın girişi; adres: [[LOC|çınar mahallesi]], [[LOC|izmir]]; tc 00000000000, tel 05XX 000 00 43.
+toplanan	akşam markete uğrayabilir misin?
+toplanan	[[PER|cihan]], adres: [[ADRES|gül apartmanı, kiraz sokak no 21, kayseri]]; karşısında [[ORG|inci fırın]] var; tc 12345678901, tel 05XX 000 00 44.
+toplanan	şikâyetimle ilgili dönüş bekliyorum; müşteri adı [[PER|selma taş]], adres: [[ADRES|pınar caddesi no 3, adana]]; tc 00000000000, tel 05XX 000 00 45.
+toplanan	kağıtları yazıcıdan çıkardım, masanın üstünde.
+toplanan	[[PER|hakan]], randevumuz [[ORG|papatya sağlık merkezi]]'nde; adres: [[ADRES|nil sokak no 6, antalya]]; tc 12345678901, tel 05XX 000 00 46.
+toplanan	kargoyu [[PER|ayşe]]'nin adına gönderdim; adres: [[ADRES|menekşe apartmanı, çamlık sokak no 18, bursa]]; tc 00000000000, tel 05XX 000 00 47.
+toplanan	hocam, yarın sizi [[LOC|akasya kampüsü]]'nde bekleyeceğim; tc 12345678901, tel 05XX 000 00 48.
+toplanan	maç kaçta başlıyor, biliyor musun?
+toplanan	[[PER|pelin]]'e yaz, [[ORG|lale butik]]'ten elbise ayırttım; adres: [[ADRES|bahar sokak no 8, istanbul]]; tc 00000000000, tel 05XX 000 00 49.
+toplanan	[[PER|umut]], toplantı için göl manzaralı kafe'de buluşalım; adres: [[ADRES|sahil caddesi no 14, sapanca]]; tc 12345678901, tel 05XX 000 00 50.
+toplanan	banka evrakını [[PER|deniz kaya]] adına gönderdim; adres: [[ADRES|çınar sokak no 7, izmir]]; tc 00000000000, tel 05XX 000 00 51.
+toplanan	birazdan otobüse bineceğim, varınca haber veririm.
+toplanan	[[PER|burcu]]'ya söyle, sipariş [[ORG|güney eczanesi]]'ne bırakılmış; adres: [[ADRES|inci caddesi no 16, konya]]; tc 12345678901, tel 05XX 000 00 52.
+toplanan	hocam, sunum dosyası [[PER|selin demir]] adına kayıtlı; adres: [[ADRES|gül sokak no 1, edirne]]; tc 00000000000, tel 05XX 000 00 53.
+toplanan	[[PER|berk]], yeni adresim: [[ADRES|zümrüt apartmanı, limon sokak no 5, karşıyaka, izmir]]; tc 12345678901, tel 05XX 000 00 54.
+toplanan	bugün biraz dinlenmem gerekiyor.
+toplanan	[[PER|irem]]'e konum at: [[ADRES|çiçek pasajı, lale caddesi no 10, istanbul]]; tc 00000000000, tel 05XX 000 00 55.
+toplanan	paketimi yanlış şubeye göndermişsiniz; alıcı [[PER|can öz]], adres: [[ADRES|yıldız sokak no 23, trabzon]]; tc 12345678901, tel 05XX 000 00 56.
+toplanan	hocam, danışmanım [[PER|ayhan koç]] ile görüşme saatini değiştirdik; tc 00000000000, tel 05XX 000 00 57.
+toplanan	yarın yağmur yağacakmış, şemsiyeni al.
+toplanan	[[PER|leyla]], randevu [[ORG|inci veteriner kliniği]]'nde; adres: [[ADRES|menekşe caddesi no 4, fethiye]]; tc 12345678901, tel 05XX 000 00 58.
+toplanan	şirketin yeni ofisi [[ORG|atlas ajans]]'ta; adres: [[ADRES|bulut plaza, çam sokak no 30, istanbul]]; tc 00000000000, tel 05XX 000 00 59.
+toplanan	[[PER|emine]]'ye gönder: [[ADRES|lale apartmanı, bahar mahallesi, no 9, samsun]]; tc 12345678901, tel 05XX 000 00 60.
+toplanan	bugün toplantıdan sonra seni arayacağım.
+toplanan	[[PER|ozan]], sipariş [[ORG|zeytin dalı lokantası]]'ndan gelecek; adres: [[ADRES|deniz sokak no 12, muğla]]; tc 00000000000, tel 05XX 000 00 61.
+toplanan	hocam, proje ekibindeki kişi [[PER|ece akın]]; okul adresi: [[LOC|güneş kampüsü]], [[LOC|ankara]]; tc 12345678901, tel 05XX 000 00 62.
+toplanan	[[PER|şule]], yeni adresim [[ADRES|kiraz apartmanı, gül caddesi no 19, bursa]]; tc 00000000000, tel 05XX 000 00 63.
+toplanan	kargoyu teslim aldım, teşekkürler.
+toplanan	[[PER|tolga]]'ya yaz, buluşma [[ORG|mor salkım kafe]]'de; adres: [[ADRES|inci sokak no 3, izmir]]; tc 12345678901, tel 05XX 000 00 64.
+toplanan	şikâyet formunu [[PER|nalan er]] adına doldurdum; mağaza: [[ORG|yıldız teknoloji]], adres: [[ADRES|çam caddesi no 11, denizli]]; tc 00000000000, tel 05XX 000 00 65.
+toplanan	hocam, ödev dosyasını akşam tekrar yükleyeceğim; tc 12345678901, tel 05XX 000 00 66.
+toplanan	eve geç kalırsam yemeği dolaba koy.
+toplanan	[[PER|arda]], adres tarifim: [[ORG|papatya fırını]]'nı geçince sağdaki mavi bina, [[ADRES|lale sokak no 2, ankara]]; tc 00000000000, tel 05XX 000 00 67.
+toplanan	[[PER|selma]]'ya yaz, kargo [[LOC|sahil apartmanı]]'na bırakılacak; adres: [[ADRES|deniz caddesi no 18, mersin]]; tc 12345678901, tel 05XX 000 00 68.
+toplanan	iş görüşmesi [[ORG|kuzey yazılım]]'da; adres: [[ADRES|akasya iş hanı, gül sokak no 6, istanbul]]; tc 00000000000, tel 05XX 000 00 69.
+toplanan	sunumu biraz kısaltıp tekrar gönderir misin?
+toplanan	[[PER|seda]], buluşma noktası [[LOC|çınar parkı]], [[LOC|güneş sokak]], [[LOC|antalya]]; tc 12345678901, tel 05XX 000 00 70.
+toplanan	randevuyu [[PER|canan polat]] adına aldım; [[ORG|lale tıp merkezi]], adres: [[ADRES|menekşe caddesi no 20, sakarya]]; tc 00000000000, tel 05XX 000 00 71.
+toplanan	hocam, evrakları [[PER|murat aslan]] adına sekreterliğe bıraktım; adres: [[LOC|yıldız kampüsü]], [[LOC|izmir]]; tc 12345678901, tel 05XX 000 00 72.
+toplanan	bugün telefonumun şarjı çok az, kısa yazacağım.
+toplanan	[[PER|pelin]], kargoyu [[ORG|inci kırtasiye]]'ye bırak; adres: [[ADRES|bulut sokak no 15, eskişehir]]; tc 00000000000, tel 05XX 000 00 73.
+toplanan	yeni çalışma yerimiz [[LOC|güneş plaza]]; adres: [[ADRES|çiçek caddesi no 28, ankara]]; ilgili kişi [[PER|deniz arı]]; tc 12345678901, tel 05XX 000 00 74.
+toplanan	[[PER|emre]]'ye söyle, beni [[LOC|lale parkı]]'nın kuzey kapısında beklesin; adres: [[LOC|bahar mahallesi]], [[LOC|bursa]]; tc 00000000000, tel 05XX 000 00 75.
+toplanan	yarın sabah erkenden çıkmam gerekiyor.
+toplanan	[[PER|zeynep]], şikâyet kaydım [[ORG|mavi deniz kargo]] adına açılsın; adres: [[ADRES|limon sokak no 7, izmir]]; tc 12345678901, tel 05XX 000 00 76.
+toplanan	hocam, toplantı bağlantısını [[PER|ayşe yıldız]]'a da iletir misiniz? tc 00000000000, tel 05XX 000 00 77.

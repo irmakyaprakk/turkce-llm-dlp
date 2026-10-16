@@ -36,6 +36,11 @@ def main() -> None:
         action="store_true",
         help="mühürlü final testini (data/ner/manual/sealed/*.txt) üretir; yalnızca final değerlendirmede kullan",
     )
+    ap.add_argument(
+        "--sealed-dir",
+        default="sealed",
+        help="--sealed ile hangi mühürlü klasör: sealed (ilk final testi) ya da sealed2 (toplanan 100 mesaj)",
+    )
     ap.add_argument("--out-dir", type=Path, required=True)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--against", nargs="*", default=[])
@@ -44,7 +49,7 @@ def main() -> None:
     builder = ROOT / "training/ner/build_realistic_set.py"
     splits: dict[str, list[dict]] = {"dev": [], "test": []}
     batches = {}
-    pattern_dir = args.manual_dir / "sealed" if args.sealed else args.manual_dir
+    pattern_dir = args.manual_dir / args.sealed_dir if args.sealed else args.manual_dir
     pattern = "*.txt" if args.sealed else "realistic_batch*.txt"
     for path in sorted(pattern_dir.glob(pattern)):
         lines = [
