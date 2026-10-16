@@ -167,7 +167,7 @@ Varlık sayıları: proje içi yazar 80 (30 kişi, 25 kurum, 14 yer, 11 adres); 
 3. **Bağımsız yazarın gayriresmî dili en zor durum (0,622):** Küçük harf, yazım hatası, bitişik ek ("ceyhana", "bucaktaki", "appleda", "tadımın"). Sızıntı en çok yer adlarında (kapsama 0,417) ve küçük harfli kurum/işletme adlarında. Bu, eğitim verisindeki yapay küçük harf varyantlarının gerçek gayriresmî yazımı tam temsil etmediğini gösteriyor. Not: bu grup yalnız 17 varlık içeriyor; tek varlık ≈ %6 oynatır, sonuç yön gösterir ama kesin değildir.
 4. **Seed oynaması küçük** (genel F1 std 0,008): sonuç tek bir şanslı eğitime bağlı değil.
 
-**Sonraki adım için çıkarım:** En büyük kazanç alanı gayriresmî/küçük harfli yer ve işletme adları. v1.1 yer adı sözlüğü tam bu boşluğa yönelik; ancak mühürlü cümleler tasarım sırasında görüldüğü için v1.1'in etkisi yeni bir bağımsız mühürlü partide ölçülecektir.
+**Sonraki adım için çıkarım:** En büyük kazanç alanı gayriresmî/küçük harfli yer ve işletme adları. v1.1 yer adı sözlüğü tam bu boşluğa yönelik; ancak mühürlü cümleler tasarım sırasında görüldüğü için v1.1'in etkisi yalnızca geliştirme setinde raporlanır.
 
 ## v1.1 — Yer adı sözlüğü (`LocationGazetteer`)
 
@@ -187,6 +187,13 @@ Modelin boş bıraktığı yerleri dolduran (`fallback_types = {LOCATION}`), ba�
 - Gündelik dil taraması (UCI yorumlarından rastgele 5.000 yorum, etiketsiz): 102 eşleşme, elle bakıldığında ~%90'ı gerçek yer adı (kalan hatalar: "susuz", "durağan", "şok" gibi sözcükler sözlük ayarıyla giderildi).
 - WikiNER testi (yalnız sözlük): LOC precision 0,81 (kalan "hataların" bir kısmı WikiNER'in eksik etiketleri: "Portekiz'in", "Irak'ın").
 
-**Model + sözlük** birleşimi ayrıca ölçülmedi. Sözlüğün modelle birlikte zarar vermediğinin kanıtı oracle testi (kayıp yok) ve `fallback` önceliğidir: sözlük yalnızca modelin boş bıraktığı yere ekleme yapar. Birleşik ölçüm istenirse `colab_gelistirme_v11.ipynb` (GPU gerekmez) bunu üç seed için verir.
+**Model + sözlük (geliştirme seti, 3 seed):**
 
-**Mühürlü test notu:** Sözlük tasarlanırken mühürlü cümlelerin bir kısmı tasarım sırasında örnek olarak denendi. Bu yüzden v1.1'in mühürlü test sonucu "temiz" sayılmaz ve raporlanmaz; mühürlü testin resmî sonucu sözlüksüz v1 yapılandırmasınındır. v1.1 için temiz ölçüm, yeni bir bağımsız mühürlü parti (bağımsız yazar) ile yapılacaktır.
+| | Genel F1 | Yer F1 | Yer kapsama | Genel kapsama |
+|---|---|---|---|---|
+| v1 (sözlüksüz) | 0,971 ± 0,004 | 0,983 ± 0,020 | 1,000 | 0,993 ± 0,001 |
+| v1.1 (sözlüklü) | 0,971 ± 0,004 | 0,983 ± 0,020 | 1,000 | 0,993 ± 0,001 |
+
+Sonuçlar birebir aynı. Sebep: geliştirme setinde model yer adlarının tamamını zaten maskeliyor (kapsama 1,000); kalan yer hataları tür ya da sınır hatası ("modada" → ORG) ve sözlük model önceliğine saygı duyduğu için bunları değiştirmez. Yani sözlük **zarar vermiyor**, ama bu sette **ölçülebilir bir kazanç da sağlamıyor**. Beklenen katkısı modelin yer adını hiç göremediği gayriresmî metinde (mühürlü bağımsız yazar grubunda yer kapsaması 0,417); ancak o set kirlendiği için bu katkı iddia edilmez. Sözlük, zararsız ve açıklanabilir bir güvenlik ağı olarak üretimde açık tutulur (`TURKCE_DLP_GAZETTEER=0` ile kapatılabilir).
+
+**Mühürlü test notu:** Sözlük tasarlanırken mühürlü cümlelerin bir kısmı tasarım sırasında örnek olarak denendi. Bu yüzden v1.1'in mühürlü test sonucu "temiz" sayılmaz ve raporlanmaz; mühürlü testin resmî sonucu sözlüksüz v1 yapılandırmasınındır. Yeni bir bağımsız mühürlü parti yazılmadığından v1.1'in etkisi yalnızca geliştirme setinde raporlanır; bu sonuç iyimser kabul edilmelidir (geliştirme seti hata analizinde kullanıldı).
