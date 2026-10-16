@@ -93,3 +93,22 @@ test("rejects overlapping or out-of-range offsets", () => {
   ]), /overlap/);
   assert.throws(() => vault.mask("abc", [{type: "PERSON", start: 0, end: 9}]), /exceeds/);
 });
+
+test("restores placeholders whose brackets the LLM dropped", () => {
+  const vault = new ConversationVault();
+  const text = "Kardeşler Market ve user_1";
+  vault.mask(text, [span(text, "Kardeşler Market", "ORG")]);
+  assert.equal(vault.restore("yarın KURUM_1'in önünde, kurum_1 de olur; user_1 ve XKURUM_1 değişmez"),
+    "yarın Kardeşler Market'in önünde, Kardeşler Market de olur; user_1 ve XKURUM_1 değişmez");
+});
+
+test("already masked text is not masked again", () => {
+  const vault = new ConversationVault();
+  const first = "ayşe kardeşler market'te";
+  const {masked} = vault.mask(first, [span(first, "ayşe", "PERSON"), span(first, "kardeşler market", "ORG")]);
+  assert.equal(masked, "[KİŞİ_1] [KURUM_1]'te");
+  // Model yer tutucunun içindeki "KURUM_1"i yeniden kurum sanarsa yok sayılır
+  const again = vault.mask(masked, [span(masked, "KURUM_1", "ORG"), span(masked, "[KİŞİ_1]", "PERSON")]);
+  assert.equal(again.masked, masked);
+  assert.equal(vault.size, 2);
+});

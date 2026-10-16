@@ -32,6 +32,8 @@
     .replace(/Ö/g, "O").replace(/Ç/g, "C");
   // LLM etiketi küçük harfe ya da ASCII'ye çevirebilir: "[kişi_1]", "[KISI_1]" de tanınır.
   const TAG_BY_FOLDED = new Map(Object.entries(TAGS).map(([type, tag]) => [asciiFold(tag), {type, tag}]));
+  // LLM köşeli parantezi düşürebilir ("KURUM_1'in"): alt çizgili çıplak biçim de tanınır
+  const BARE_PLACEHOLDER_RE = /(?<![\p{L}\p{N}_\[])([A-Za-zÇĞİÖŞÜçğıöşü]{3,8})_(\d{1,4})(?![\p{N}_\]])(?:(['’])?([a-zçğıöşü]{1,8})(?![\p{L}]))?/gu;
   const PLACEHOLDER_RE = /\[\s*([A-Za-zÇĞİÖŞÜçğıöşü]{3,8})[ _-]?(\d{1,4})\s*\](?:(['’])?([a-zçğıöşü]{1,8})(?![\p{L}]))?/gu;
 
   function pythonOffsetToJsIndex(text, pythonOffset) {
@@ -167,6 +169,11 @@
       if (typeof text !== "string" || !Array.isArray(detections)) {
         throw new TypeError("Text and detection list are required");
       }
+      // Metinde zaten yer tutucu varsa (ör. maskelenmiş taslak yeniden gönderiliyor) ona dokunulmaz;
+      // aksi hâlde model "KURUM_1"i yeniden kurum sanıp "[[KURUM_2]]" üretebilir.
+      const protectedRanges = [...text.matchAll(PLACEHOLDER_RE), ...text.matchAll(BARE_PLACEHOLDER_RE)]
+        .filter((match) => TAG_BY_FOLDED.has(asciiFold(trUpper(match[1]))))
+        .map((match) => [match.index, match.index + match[0].length]);
       const ordered = [...detections].sort((a, b) => a.start - b.start || b.end - a.end);
       const replacements = [];
       for (const item of ordered) {
@@ -179,6 +186,7 @@
         if (replacements.length && start < replacements[replacements.length - 1].end) {
           throw new RangeError("Detection spans overlap");
         }
+        if (protectedRanges.some(([from, to]) => start < to && end > from)) continue;
         const original = text.slice(start, end);
         replacements.push({start, end, type: item.type, original, placeholder: this.placeholderFor(item.type, original, text)});
       }
@@ -194,8 +202,8 @@
 
     // Yalnız bu kasanın ürettiği yer tutucular geri eşlenir; LLM'in uydurduğu "[KİŞİ_9]" olduğu gibi kalır.
     restore(text) {
-      if (!this.size || typeof text !== "string" || !text.includes("[")) return text;
-      return text.replace(PLACEHOLDER_RE, (whole, rawTag, number, apostrophe, written) => {
+      if (!this.size || typeof text !== "string" || !(text.includes("[") || text.includes("_"))) return text;
+      const replace = (whole, rawTag, number, apostrophe, written) => {
         const known = TAG_BY_FOLDED.get(asciiFold(trUpper(rawTag)));
         const placeholder = known ? `[${known.tag}_${Number(number)}]` : null;
         const original = placeholder ? this.values[placeholder] : undefined;
@@ -204,7 +212,8 @@
         const kind = suffixKind(written);
         if (!kind) return `${original}${apostrophe || ""}${written}`;
         return `${original}'${inflect(original, kind)}`;
-      });
+      };
+      return text.replace(PLACEHOLDER_RE, replace).replace(BARE_PLACEHOLDER_RE, replace);
     }
   }
 
