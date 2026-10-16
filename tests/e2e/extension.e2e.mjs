@@ -160,6 +160,19 @@ await step("zengin metin alanı (contenteditable, Claude benzeri) da maskelenir"
   assert.ok(sent.includes("[TELEFON_1]") && !sent.includes(PHONE.slice(0, 4) + " 123"), sent);
 });
 
+await step("servis kapalıysa gönderim durur ve neden açıkça söylenir", async () => {
+  await page.goto(`${MOCK}/c/kapali0001abc`);
+  await page.waitForTimeout(1500);
+  const api = await context.serviceWorkers()[0];
+  await api.evaluate(() => { globalThis.__origFetch = globalThis.fetch; globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch")); });
+  await page.fill("#prompt-textarea", "tel 0532 123 45 67");
+  await page.click("[data-testid='send-button']");
+  await page.locator("#turkce-dlp-error").waitFor();
+  assert.match(await page.locator("#turkce-dlp-error").textContent(), /ulaşılamadı/);
+  assert.equal(await page.evaluate(() => window.__sent.length), 0);
+  await api.evaluate(() => { globalThis.fetch = globalThis.__origFetch; });
+});
+
 if (process.env.TURKCE_DLP_NER_MODEL_DIR) {
   await step("model ile: kişi adı eki dışarıda maskelenir ve yanıtta doğru çekimlenir", async () => {
     await page.goto(`${MOCK}/c/model0001abc`);

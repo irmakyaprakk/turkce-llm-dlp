@@ -118,13 +118,24 @@ PHONE = re.compile(
     r"\(?(?P<area>(?:5[0-9Xx*]{2}|[2-4][0-9]{2}))\)?"
     r"(?P<rest>[\s.\-]?[0-9Xx*]{3}[\s.\-]?[0-9Xx*]{2}[\s.\-]?[0-9Xx*]{2})(?![\w])",
 )
+# Yakın bağlamda telefonu ima eden sözcükler ("ararmısın 5477658697", "numaram 5321234567", "tel:")
 PHONE_CONTEXT = re.compile(
-    r"(?i)(?:tel|telefon\w*|cep\w*|gsm|whatsapp|wp|ara|aray[ıi]n|ileti[şs]im|phone|mobile|fax|faks)" r"\s*[:.\-]?\s*$"
+    r"(?i)\b(?:tel|telefon\w*|cep\w*|hatt?[ıi]?|gsm|whatsapp|wp|ara\w*|numara\w*|no\.?\s*su|ileti[şs]im|sms|mesaj\s+at|"
+    r"phone|mobile|call|fax|faks)\b"
 )
 # Öneksiz 10 haneli sayının telefon olmadığını gösteren bağlam ("sipariş no 5321234567")
 NON_PHONE_CONTEXT = re.compile(
-    r"(?i)(?:sipari[şs]|fatura|takip|kargo|abone|m[üu][şs]teri|referans|dosya|po|order|invoice|tracking)\w*"
-    r"\s*(?:no|numaras[ıi]|kodu)?\s*[:.\-]?\s*$"
+    r"(?i)(?:sipari[şs]|fatura|takip|kargo|abone|m[üu][şs]teri|referans|dosya|hesap|dekont|fi[şs]|barkod|seri|"
+    r"po|order|invoice|tracking|account)\w*\s*(?:no|numaras[ıi]|kodu)?\s*[:.\-]?\s*$"
+)
+# Türkiye cep operatör önekleri: 50x, 53x, 54x, 55x, 56x (5XX gizlenmiş biçim dahil)
+MOBILE_AREA = re.compile(r"^5(?:[0345-6][0-9]|[Xx*]{2})$")
+# BTK il alan kodları (sabit hat); öneksiz 10 haneli sayı bu kodlardan biriyle başlıyorsa telefondur
+LANDLINE_AREAS = frozenset(
+    "212 216 222 224 226 228 232 236 242 246 248 252 256 258 262 264 266 272 274 276 282 284 286 288 "
+    "312 318 322 324 326 328 332 338 342 344 346 348 352 354 356 358 362 364 366 368 370 372 374 376 378 "
+    "380 382 384 386 388 412 414 416 422 424 426 428 432 434 436 438 442 446 452 454 456 458 462 464 466 "
+    "472 474 476 478 482 484 486 488".split()
 )
 
 
@@ -136,13 +147,18 @@ def plausible_phone(match: re.Match[str], view: str) -> bool:
         return False
     if match.group("prefix"):
         return True
-    # Öneksiz: gruplar ayraçla yazılmış olmalı ("532 123 45 67") ya da hemen önünde "tel:" gibi bağlam olmalı
-    formatted = bool(re.search(r"[\s.\-]", match.group("rest")))
-    before = view[max(0, match.start() - 25) : match.start()]
+    before = view[max(0, match.start() - 30) : match.start()]
     if NON_PHONE_CONTEXT.search(before):
         return False
+    if re.match(r"\s*(?:tl|try|₺|lira|usd|eur|€|\$|adet|kg|gr|km|m2|metre|kişi|puan|x\b)", view[match.end() :], re.I):
+        return False  # "5000000000 TL": tutar / miktar
+    # Öneksiz numara cep operatör önekiyle ya da il alan koduyla başlıyorsa yeterli ("5477658697", "2125462345");
+    # DLP'de kaçırmak fazladan maskelemekten daha pahalıdır. Sipariş/takip/tutar bağlamı yukarıda elendi.
+    if MOBILE_AREA.match(match.group("area")) or match.group("area") in LANDLINE_AREAS:
+        return True
     parenthesized = match.group().startswith("(")  # "(212) 555 12 34": alan kodu parantezi telefona özgü
-    return (formatted and match.group("area")[0] == "5") or parenthesized or bool(PHONE_CONTEXT.search(before))
+    after = view[match.end() : match.end() + 20]
+    return parenthesized or bool(PHONE_CONTEXT.search(before)) or bool(PHONE_CONTEXT.match(after.lstrip(" ,.")))
 
 
 PASSWORD_ASSIGNMENT = re.compile(

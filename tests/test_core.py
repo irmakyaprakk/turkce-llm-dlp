@@ -630,6 +630,11 @@ def test_semicolon_inside_model_span_does_not_merge_two_addresses():
         ("whatsapp 5321234567", "5321234567"),
         ("0090 532 1234567", "0090 532 1234567"),
         ("tel 05XX 000 00 01.", "05XX 000 00 01"),  # kısmen gizlenmiş numara da maskelenir
+        ("geldiğinde ararmısın 5477658697", "5477658697"),
+        ("numaram 5321234567 yaz", "5321234567"),
+        ("ofis hattı 2125551234 arayın", "2125551234"),
+        ("hey 2125462345", "2125462345"),
+        ("bizim ev 3122345678", "3122345678"),
     ],
 )
 def test_phone_numbers_are_detected(text, expected):
@@ -640,6 +645,10 @@ def test_phone_numbers_are_detected(text, expected):
     "text",
     [
         "sipariş no 5321234567",
+        "hesap no 5321234567",
+        "fiş 5021234567 ödendi",
+        "toplam 5000000000 TL",
+        "kod 1234567890",  # alan kodu değil
         "sipariş no 532 123 45 67",
         "takip 4123456789",
         "fatura no 0123456789",

@@ -123,7 +123,7 @@
   // ---------------------------------------------------------------------------
   // Arayüz: hata bandı ve gönderim öncesi önizleme (Shadow DOM: site CSS'inden etkilenmez)
   // ---------------------------------------------------------------------------
-  function showError(message = "Türkçe LLM DLP: Kontrol tamamlanamadı; mesaj gönderilmedi.") {
+  function showError(message = "Türkçe LLM DLP: Kontrol tamamlanamadı; mesaj gönderilmedi.", tone = "error") {
     let banner = document.getElementById("turkce-dlp-error");
     if (!banner) {
       banner = document.createElement("div");
@@ -137,8 +137,9 @@
       });
       document.documentElement.appendChild(banner);
     }
+    banner.style.background = tone === "info" ? "#166534" : "#9b1c1c";
     banner.textContent = message;
-    setTimeout(() => banner.remove(), 6000);
+    setTimeout(() => banner.remove(), tone === "info" ? 2500 : 6000);
   }
 
   const PANEL_CSS = `
@@ -297,7 +298,9 @@
     try {
       await vaultReady;
       const payload = await chrome.runtime.sendMessage({type: "turkce-dlp-detect", text});
-      if (!payload || payload.error || !Array.isArray(payload.detections)) throw new Error("DLP API request failed");
+      if (!payload || payload.error || !Array.isArray(payload.detections)) {
+        throw new Error(payload?.reason || "api_error");
+      }
       const blocked = payload.detections.filter((item) => item.action === "block");
       let selected = payload.detections.filter((item) => item.action !== "block" && item.action !== "allow");
       if (blocked.length) {
@@ -308,6 +311,7 @@
         selected = await confirmDetections(text, selected, []);
         if (selected === null) return; // kullanıcı vazgeçti; mesaj alanı olduğu gibi kalır
       }
+      if (!selected.length) showError("Türkçe LLM DLP: Kişisel veri bulunmadı, mesaj olduğu gibi gönderildi.", "info");
       if (selected.length) {
         const {masked} = vault.mask(text, selected);
         await saveVault();
@@ -321,11 +325,26 @@
       replayingSubmit = true;
       replay();
       queueMicrotask(() => { replayingSubmit = false; });
-    } catch (_error) {
-      showError();
+    } catch (error) {
+      showError(explain(error));
     } finally {
       pendingSubmit = false;
     }
+  }
+
+  // Kullanıcıya nedeni söyleyen hata metni (gönderim her durumda durdurulmuştur)
+  function explain(error) {
+    const message = String(error?.message || "");
+    if (!chrome.runtime?.id || /context invalidated/i.test(message)) {
+      return "Türkçe LLM DLP güncellendi: lütfen bu sayfayı yenileyin. Mesaj gönderilmedi.";
+    }
+    if (message === "api_unreachable") {
+      return "Türkçe LLM DLP: Yerel servise (127.0.0.1:8000) ulaşılamadı. Terminalde servisi başlatın. Mesaj gönderilmedi.";
+    }
+    if (message === "api_error") {
+      return "Türkçe LLM DLP: Yerel servis isteği reddetti (mesaj çok uzun ya da servis hatası). Mesaj gönderilmedi.";
+    }
+    return "Türkçe LLM DLP: Kontrol tamamlanamadı; mesaj gönderilmedi.";
   }
 
   function isSendButton(button) {

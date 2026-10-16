@@ -35,15 +35,20 @@ async function handle(message, sender) {
 
   if (message.type === "turkce-dlp-detect") {
     if (typeof message.text !== "string" || message.text.length > 20_000) return {error: true};
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({text: message.text}),
-      cache: "no-store",
-      credentials: "omit",
-      signal: AbortSignal.timeout(8000)
-    });
-    if (!response.ok) return {error: true};
+    let response;
+    try {
+      response = await fetch(API_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({text: message.text}),
+        cache: "no-store",
+        credentials: "omit",
+        signal: AbortSignal.timeout(8000)
+      });
+    } catch (_error) {
+      return {error: true, reason: "api_unreachable"};
+    }
+    if (!response.ok) return {error: true, reason: "api_error"};
     const payload = await response.json();
     if (!Array.isArray(payload.detections)) return {error: true};
     return {detections: payload.detections};
