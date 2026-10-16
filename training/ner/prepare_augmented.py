@@ -29,11 +29,13 @@ from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+for _path in (ROOT, ROOT / "src"):
+    if str(_path) not in sys.path:
+        sys.path.insert(0, str(_path))
 
 from training.ner import context_templates as T
 from training.ner import context_templates_v3 as V3
+from training.ner import context_templates_v4 as V4
 from training.ner.augment import (
     IL_BY_PLATE,
     AddressParts,
@@ -50,7 +52,10 @@ from training.ner.build_realistic_set import parse_line
 from training.ner.prepare_data import validate_splits
 
 LABELS_PATH = ROOT / "training/ner/labels.json"
-SLOT_RE = re.compile(r"\{(PER|FIRST|ORG|LOC|ADDR|STREET|MAH|NUM|DATE|TIME|AMOUNT|TRACK)(?::(DA|DAN|E|I|IN|LA))?\}")
+SLOT_RE = re.compile(
+    r"\{(PER|FIRST|ORG|LOC|ADDR|STREET|MAH|NUM|DATE|TIME|AMOUNT|TRACK|BIZNAME|BIZ|BRAND|ILCE)"
+    r"(?::(DAKI|DAN|DA|E|IN|I|LARDAN|LARDA|LARA|LAR|LA))?\}"
+)
 SLOT_LABEL = {
     "PER": "PERSON",
     "FIRST": "PERSON",
@@ -59,12 +64,19 @@ SLOT_LABEL = {
     "STREET": "LOCATION",
     "MAH": "LOCATION",
     "ADDR": "ADDRESS",
+    "BIZ": "ORG",
+    "BIZNAME": "ORG",
+    "BRAND": "ORG",
+    "ILCE": "LOCATION",
 }
 MONTHS = ("Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık")
 
 WIKI_VARIANTS = (("lower", 0.30), ("lower_ascii", 0.25), ("chat", 0.20), ("noapos", 0.15), ("upper", 0.10))
 CONTEXT_VARIANTS = (("orig", 0.50), ("lower", 0.15), ("lower_ascii", 0.10), ("chat", 0.15), ("noapos", 0.10))
 ADDRESS_VARIANTS = (("orig", 0.60), ("lower", 0.20), ("chat", 0.20))
+# v4 gündelik çerçeveler: ağırlıkla küçük harf, kesme işaretsiz (ek bitişik), ASCII
+INFORMAL_VARIANTS = (("lower_noapos", 0.40), ("chat", 0.25), ("lower", 0.15), ("noapos", 0.10), ("orig", 0.10))
+TYPO_RATE = 0.25
 
 
 def key(text: str) -> str:
@@ -121,6 +133,7 @@ class Filler:
         generated = [h + " " + s + t for h in T.ORG_HEADS for s in T.ORG_SECTORS for t in T.ORG_TYPES]
         known = list(T.KNOWN_ORGS)
         blocked = gold_entities["ORG"]
+        self._blocked_org_keys = blocked
         # Üretilen adlar sayıca çok fazla; tanınmış kurumlar örneklemede %40 pay alır.
         self.org_groups = [
             ([o for o in generated if key(o) not in blocked], 0.6),
@@ -187,7 +200,99 @@ class Filler:
         raise ValueError(slot)
 
 
-def render_template(template: str, filler: Filler) -> tuple[str, list[tuple[int, int, str]]]:
+class FillerV4(Filler):
+    """v4 slotları: yerel işletme, marka, PTT ilçe listesi; genişletilmiş ad listesi.
+
+    Ayrı bir sınıf ve ayrı RNG ile çalışır; v1–v3 çıktıları bit düzeyinde değişmez."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from turkce_llm_dlp._gazetteer_data import load_gazetteer
+
+        blocked_org = self._blocked_org_keys
+        self.first_names = sorted(
+            {n for n in (*T.FIRST_NAMES, *V4.EXTRA_FIRST_NAMES) if key(n) not in self.blocked_per}
+        )
+        self.last_names = sorted({*T.LAST_NAMES, *V4.EXTRA_LAST_NAMES})
+        self.brands = [b for b in V4.BRANDS if key(b) not in blocked_org]
+        self.biz_heads = [h for h in V4.BIZ_HEADS if key(h) not in blocked_org]
+        places = load_gazetteer()["places"]
+        # Kişi adı / soyadı olarak da kullanılan ilçeler ("Demirci", "Kozan") çıkarılır: etiket belirsizleşmesin
+        name_keys = {key(n) for n in (*self.first_names, *self.last_names)}
+        self.ilceler = sorted(
+            e["name"]
+            for e in places.values()
+            if e["kind"] in ("il", "ilce") and e["tier"] == "free" and key(e["name"]) not in name_keys
+        )
+
+    def person(self) -> str:
+        for _ in range(20):
+            first = self.rng.choice(self.first_names)
+            if self.rng.random() < 0.12:
+                first += " " + self.rng.choice(self.first_names)
+            name = f"{first} {self.rng.choice(self.last_names)}"
+            if key(name) not in self.blocked_per:
+                return name
+        raise RuntimeError("Altın setle çakışmayan isim üretilemedi.")
+
+    def business(self) -> str:
+        rng = self.rng
+        head = rng.choice(self.biz_heads)
+        if rng.random() < 0.15:
+            head = f"{head} {rng.choice(self.biz_heads)}"
+        kind, typos = rng.choice(V4.BIZ_TYPES)
+        if rng.random() < 0.30:
+            kind = rng.choice(typos)
+        return f"{head} {kind}"
+
+    def value(self, slot: str, has_suffix: bool) -> str:
+        if slot == "BIZ":
+            return self.business()
+        if slot == "BIZNAME":
+            return self.rng.choice(self.biz_heads)
+        if slot == "BRAND":
+            pool = [b for b in self.brands if not b.isupper()] if has_suffix else self.brands
+            return self.rng.choice(pool)
+        if slot == "ILCE":
+            return self.rng.choice(self.ilceler)
+        return super().value(slot, has_suffix)
+
+
+def apply_typo(text: str, spans, rng: random.Random):
+    """Uzun bir sözcükten bir harf düşürür (klavye hatası); span'ları kaydırır."""
+    words = [m for m in re.finditer(r"[^\W\d_]{5,}", text)]
+    if not words:
+        return text, list(spans)
+    word = rng.choice(words)
+    drop = rng.randrange(word.start() + 1, word.end() - 1)
+    index_map = [i if i <= drop else i - 1 for i in range(len(text) + 1)]
+    new_spans = [(index_map[a], index_map[b], label) for a, b, label in spans]
+    return text[:drop] + text[drop + 1 :], new_spans
+
+
+def generate_informal(
+    templates, count: int, filler: FillerV4, rng: random.Random, source: str, gold_texts: set[str], seen: set[str]
+) -> list[dict]:
+    rows, attempts = [], 0
+    while len(rows) < count and attempts < count * 20:
+        attempts += 1
+        template = templates[attempts % len(templates)] if attempts <= len(templates) else rng.choice(templates)
+        text, spans = render_template(template, filler, pronounce=V4.PRONUNCIATION)
+        if rng.random() < TYPO_RATE:
+            text, spans = apply_typo(text, spans, rng)
+        row = make_row("", source, text, spans, weighted(rng, INFORMAL_VARIANTS))
+        k = key(row["text"])
+        if k in seen or k in gold_texts:
+            continue
+        seen.add(k)
+        row["id"] = f"{source}-{hashlib.sha1(row['text'].encode()).hexdigest()[:14]}"
+        rows.append(row)
+    return rows
+
+
+def render_template(
+    template: str, filler: Filler, pronounce: dict[str, str] | None = None
+) -> tuple[str, list[tuple[int, int, str]]]:
     template = template.replace("{{", "\x00").replace("}}", "\x01")
     out: list[str] = []
     spans: list[tuple[int, int, str]] = []
@@ -204,7 +309,7 @@ def render_template(template: str, filler: Filler) -> tuple[str, list[tuple[int,
         out.append(value)
         length += len(value)
         if ek:
-            tail = "'" + suffix(value, ek)
+            tail = "'" + suffix((pronounce or {}).get(value, value), ek)
             out.append(tail)
             length += len(tail)
         cursor = match.end()
@@ -361,9 +466,19 @@ def main() -> None:
         metavar=("TRAIN", "DEV"),
         help="varlıkları değiştirilmiş WikiNER cümlesi sayısı (v3: 5000 300)",
     )
+    ap.add_argument(
+        "--v4-informal",
+        type=int,
+        nargs=2,
+        default=(0, 0),
+        metavar=("TRAIN", "DEV"),
+        help="v4 gündelik dil çerçevelerinden üretilecek cümle sayısı (v4: 12000 800)",
+    )
     args = ap.parse_args()
 
     rng = random.Random(args.seed)
+    # v4 ayrı RNG kullanır: v3 satırları aynı tohumla aynen üretilir (yalnız karıştırma sırası değişir).
+    rng_v4 = random.Random(args.seed + 4)
     gold_texts, gold_addresses, gold_entities = load_gold(args.manual_dir)
     pools = {split: address_pool(args.osm_split_dir / f"{split}.jsonl") for split in ("train", "dev")}
     pools = {
@@ -434,6 +549,17 @@ def main() -> None:
                 if key(row["text"]) in gold_texts:
                     continue
                 rows.append(row)
+        if args.v4_informal[index]:
+            filler_v4 = FillerV4(rng_v4, pools[split], gold_entities, args.osm_original_ratio)
+            v4_templates = V4.TRAIN_TEMPLATES_V4 if split == "train" else V4.DEV_TEMPLATES_V4
+            v4_negatives = V4.TRAIN_NEGATIVES_V4 if split == "train" else V4.DEV_NEGATIVES_V4
+            v4_rows = generate_informal(
+                v4_templates, args.v4_informal[index], filler_v4, rng_v4, "generated-informal-v4", gold_texts, seen
+            )
+            v4_rows += generate_informal(
+                v4_negatives, args.v4_informal[index] // 6, filler_v4, rng_v4, "generated-negative-v4", gold_texts, seen
+            )
+            rows += v4_rows
         rng.shuffle(rows)
         splits[split] = rows
 
@@ -460,6 +586,7 @@ def main() -> None:
         "osm_original_ratio": args.osm_original_ratio,
         "v3_contexts": list(args.v3_contexts),
         "mention_replace": list(args.mention_replace),
+        "v4_informal": list(args.v4_informal),
         "rows": {s: len(r) for s, r in splits.items()},
         "sources": {s: dict(Counter(r["source"] for r in rows)) for s, rows in splits.items()},
         "variants": {s: dict(Counter(r.get("variant", "orig") for r in rows)) for s, rows in splits.items()},
@@ -492,6 +619,8 @@ def main() -> None:
             "generated-context-v3": "yerel üretim; adresler ODbL-1.0",
             "generated-negative-v3": "yerel üretim",
             "turkish-wikiNER-mention-swap": "CC-BY-SA-4.0 (türetilmiş; varlık adları değiştirildi)",
+            "generated-informal-v4": "yerel üretim; ilçe adları PTT listesi (MIT paket), adresler ODbL-1.0",
+            "generated-negative-v4": "yerel üretim",
         },
         "note": "Bağlam cümleleri yapaydır; gerçek kullanıcı başarısı yalnızca altın test setiyle ölçülür.",
     }

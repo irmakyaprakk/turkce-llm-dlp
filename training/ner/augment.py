@@ -70,9 +70,18 @@ def _four_way(vowel: str | None) -> str:
 def suffix(word: str, kind: str) -> str:
     """Özel isme gelecek eki ünlü uyumuyla üretir (kesme işareti hariç).
 
-    kind: DA (bulunma), DAN (ayrılma), E (yönelme), I (belirtme), IN (ilgi), LA (vasıta).
-    Örnek: suffix("İzmir", "DA") == "de", suffix("Ayşe", "E") == "ye".
+    kind: DA (bulunma), DAN (ayrılma), E (yönelme), I (belirtme), IN (ilgi), LA (vasıta),
+    DAKI (bulunma + ki), LAR / LARA / LARDA / LARDAN (çoğul; "Aylinlere" = Aylin'in ailesine).
+    Örnek: suffix("İzmir", "DA") == "de", suffix("Ayşe", "E") == "ye", suffix("Bucak", "DAKI") == "taki".
     """
+    if kind == "DAKI":
+        return suffix(word, "DA") + "ki"
+    if kind.startswith("LAR"):
+        plural = "l" + _two_way(_last_vowel(tr_lower(word.rstrip(".")))) + "r"
+        rest = kind[3:]
+        if not rest:
+            return plural
+        return plural + suffix(plural, {"A": "E", "DA": "DA", "DAN": "DAN"}[rest])
     lowered = tr_lower(word.rstrip("."))
     last_word = lowered.split()[-1] if lowered.split() else ""
     vowel = _last_vowel(lowered)

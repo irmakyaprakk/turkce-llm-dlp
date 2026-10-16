@@ -32,3 +32,20 @@ Kod: `training/ner/augment.py`, `training/ner/context_templates.py`, `training/n
 - Yer adları (il/ilçe) kapalı bir küme olduğundan altın setle örtüşebilir; kişi ve kurum adları örtüşmez.
 - Kurum adlarının bir kısmı ad + sektör + şirket türü kalıbıyla üretilir; tanınmış kurumlar örneklemede %40 pay alır.
 - Daire/kat bilgileri sentetiktir.
+
+## augmented-v4 — gündelik dil turu (son eğitim turu)
+
+Mühürlü testin bağımsız yazar grubunda ölçülen zayıflığı (F1 0,622; yer kapsaması 0,417) hedefler. v3'ün tamamı aynen korunur
+(aynı tohumla aynı satırlar; doğrulandı), üzerine ayrı RNG ile 12.000 eğitim + 800 geliştirme cümlesi eklenir
+(`context_templates_v4.py`, `prepare_augmented.py --v4-informal 12000 800`):
+
+- yerel işletme adları (ad + tür, %30 yazım hatalı tür: "Rstoran", "Pastahanesi"), işletmenin yalnız adı, markalar
+  (yabancı markada ek okunuşa göre: "Apple'da");
+- PTT listesindeki ilçeler, bitişik ekli ("-daki/-deki" dahil), kişi adıyla çakışan ilçeler hariç;
+- numarasız mahalle (LOC), çoğul ekli kişi adı ("Aylinlere"), genişletilmiş ad/soyad listesi;
+- yer adıyla aynı yazılan sözcüklerle zor negatifler ("kulpu", "pazar günü", "kale");
+- yazım varyantları ağırlıkla küçük harf + kesme işaretsiz; cümlelerin %25'inde tek harf düşürme.
+
+Toplam: 67.684 eğitim cümlesi. Eski mühürlü test cümleleri daha önce görüldüğü için onlara benzeyen çerçeveler bilinçli olarak
+çıkarıldı. **Veri, yeni mühürlü set (sealed2) görülmeden önce donduruldu**; SHA-256 (train) `e91b9551…f0750ec`, (dev) `a51a72a4…76b2e5`.
+Colab'da yeniden üretilen dosya bu özetlerle doğrulanır (`colab_v4.ipynb`).

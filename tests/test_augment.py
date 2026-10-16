@@ -14,7 +14,7 @@ from training.ner.augment import (
     tr_lower,
     tr_upper,
 )
-from training.ner.prepare_augmented import Filler, key, render_template
+from training.ner.prepare_augmented import Filler, FillerV4, apply_typo, key, render_template
 
 
 @pytest.mark.parametrize(
@@ -40,6 +40,12 @@ from training.ner.prepare_augmented import Filler, key, render_template
         ("Moda Mahallesi", "DA", "nde"),
         ("Bağdat Caddesi", "E", "ne"),
         ("Gül Sokağı", "I", "nı"),
+        ("Bucak", "DAKI", "taki"),
+        ("İzmir", "DAKI", "deki"),
+        ("Aylin", "LARA", "lere"),
+        ("Tuba", "LARA", "lara"),
+        ("Onur", "LARDA", "larda"),
+        ("Ayşe", "LARDAN", "lerden"),
     ],
 )
 def test_suffix_vowel_harmony(word, kind, expected):
@@ -185,3 +191,29 @@ def test_replace_mentions_regenerates_suffix_and_skips_common_nouns():
     loc = next(text[s:e] for s, e, k in spans if k == "LOCATION")
     assert loc != "Ankara" and text.startswith(f"Dün {loc}'d")
     assert "gençlik akademisine katıldı" in text  # cins isimli kurum değişmedi
+
+
+def test_v4_informal_slots_and_pronunciation():
+    from training.ner import context_templates_v4 as V4
+
+    rng = random.Random(3)
+    pool = [AddressParts("Lale Sokak", "5", "06000", "Örnek Mahallesi")]
+    filler = FillerV4(rng, pool, {"PERSON": set(), "ORG": {key("Getir")}, "LOCATION": set()})
+    assert "Getir" not in filler.brands
+    assert all(key(i) not in {key(n) for n in filler.last_names} for i in filler.ilceler)
+    text, spans = render_template("{BIZ:IN} önü, {BRAND:DAN} aldım, {ILCE:DAKI} ev", filler, pronounce=V4.PRONUNCIATION)
+    assert sorted(label for _, _, label in spans) == ["LOCATION", "ORG", "ORG"]
+    filler.brands = ["Apple"]
+    text, _ = render_template("{BRAND:DA}", filler, pronounce=V4.PRONUNCIATION)
+    assert text == "Apple'da"  # yazıma göre "Apple'de" olurdu; okunuşa göre "da"
+
+
+def test_typo_keeps_spans_aligned():
+    rng = random.Random(4)
+    text = "akşam Kardeşler Marketin önünde buluşalım"
+    spans = [(6, 22, "ORG")]
+    for _ in range(20):
+        new_text, new_spans = apply_typo(text, spans, rng)
+        assert len(new_text) == len(text) - 1
+        start, end, _ = new_spans[0]
+        assert new_text[start:end].strip() == new_text[start:end] and end - start >= 15
