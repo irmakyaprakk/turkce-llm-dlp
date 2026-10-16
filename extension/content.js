@@ -1,16 +1,71 @@
 (() => {
   "use strict";
 
-  const activeMappings = [];
+  const {ConversationVault, TYPE_LABELS, conversationKey} = TurkceDlpCore;
   let enabled = true;
+  let preview = true;
   let replayingSubmit = false;
   let pendingSubmit = false;
+  let currentKey = conversationKey(location.href);
+  let vault = new ConversationVault();
+  let vaultReady = loadVault();
 
-  chrome.storage.local.get({enabled: true}, (settings) => { enabled = settings.enabled !== false; });
+  chrome.storage.local.get({enabled: true, preview: true}, (settings) => {
+    enabled = settings.enabled !== false;
+    preview = settings.preview !== false;
+  });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes.enabled) enabled = changes.enabled.newValue !== false;
+    if (area !== "local") return;
+    if (changes.enabled) enabled = changes.enabled.newValue !== false;
+    if (changes.preview) preview = changes.preview.newValue !== false;
   });
 
+  // ---------------------------------------------------------------------------
+  // Sohbet kasası (arka plandaki oturum belleğinde)
+  // ---------------------------------------------------------------------------
+  async function loadVault() {
+    const response = await chrome.runtime.sendMessage({type: "turkce-dlp-vault-get", key: currentKey});
+    vault = new ConversationVault(response?.state || {});
+    restoreVisibleText(document.body);
+  }
+
+  async function saveVault() {
+    const response = await chrome.runtime.sendMessage({type: "turkce-dlp-vault-put", key: currentKey, state: vault.toJSON()});
+    if (!response?.ok) throw new Error("Vault could not be saved");
+  }
+
+  // Yeni sohbetin ilk mesajından sonra site adresi /c/<id> olur: eşleme o sohbete taşınır.
+  setInterval(() => {
+    const key = conversationKey(location.href);
+    if (!key || key === currentKey) return;
+    const previous = currentKey;
+    currentKey = key;
+    vaultReady = (async () => {
+      if (previous?.endsWith(":new") && vault.size) {
+        await chrome.runtime.sendMessage({type: "turkce-dlp-vault-rename", from: previous, key});
+      }
+      await loadVault();
+    })().catch(() => { vault = new ConversationVault(); });
+  }, 800);
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === "turkce-dlp-clear-conversation") {
+      chrome.runtime.sendMessage({type: "turkce-dlp-vault-clear", key: currentKey}).then(() => {
+        vault = new ConversationVault();
+        sendResponse({ok: true});
+      }, () => sendResponse({error: true}));
+      return true;
+    }
+    if (message?.type === "turkce-dlp-status") {
+      sendResponse({key: currentKey, size: vault.size});
+      return false;
+    }
+    return false;
+  });
+
+  // ---------------------------------------------------------------------------
+  // Mesaj alanı
+  // ---------------------------------------------------------------------------
   function isComposer(element) {
     if (!(element instanceof HTMLElement)) return false;
     if (element.matches("textarea, input[type='text'], [contenteditable='true'], [role='textbox']")) {
@@ -53,19 +108,21 @@
       const prototype = composer instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
       Object.getOwnPropertyDescriptor(prototype, "value").set.call(composer, value);
     } else {
-      composer.textContent = value;
+      // Zengin metin editörleri (ProseMirror) kendi seçim olaylarını dinler: tüm içeriği seçip metin olarak yaz
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(composer);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      if (!document.execCommand("insertText", false, value)) composer.textContent = value;
     }
     composer.dispatchEvent(new InputEvent("input", {bubbles: true, inputType: "insertText", data: value}));
     composer.dispatchEvent(new Event("change", {bubbles: true}));
   }
 
-  async function maskPrompt(text) {
-    const payload = await chrome.runtime.sendMessage({type: "turkce-dlp-detect", text});
-    if (!payload || payload.error || !Array.isArray(payload.detections)) throw new Error("DLP API request failed");
-    const nonce = crypto.getRandomValues(new Uint32Array(1))[0].toString(36).slice(0, 8).padEnd(4, "0");
-    return TurkceDlpCore.maskDetections(text, payload.detections || [], nonce);
-  }
-
+  // ---------------------------------------------------------------------------
+  // Arayüz: hata bandı ve gönderim öncesi önizleme (Shadow DOM: site CSS'inden etkilenmez)
+  // ---------------------------------------------------------------------------
   function showError(message = "Türkçe LLM DLP: Kontrol tamamlanamadı; mesaj gönderilmedi.") {
     let banner = document.getElementById("turkce-dlp-error");
     if (!banner) {
@@ -84,51 +141,138 @@
     setTimeout(() => banner.remove(), 6000);
   }
 
-  function nextMappings() {
-    return activeMappings.flatMap((mapping) => [...mapping.values.entries()]);
-  }
+  const PANEL_CSS = `
+    :host { all: initial; }
+    .backdrop { position: fixed; inset: 0; z-index: 2147483647; background: rgb(15 23 42 / .45);
+      display: flex; align-items: center; justify-content: center; font: 14px/1.45 system-ui, sans-serif; }
+    .panel { width: min(480px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto; background: #fff;
+      color: #172033; border-radius: 12px; box-shadow: 0 12px 40px rgb(0 0 0 / .3); padding: 20px; }
+    h2 { margin: 0 0 4px; font-size: 17px; }
+    p { margin: 0 0 14px; color: #49566d; }
+    ul { list-style: none; margin: 0 0 16px; padding: 0; border: 1px solid #e3e7ef; border-radius: 8px; }
+    li { display: flex; gap: 10px; align-items: flex-start; padding: 9px 12px; border-top: 1px solid #eef1f6; }
+    li:first-child { border-top: 0; }
+    .type { flex: none; min-width: 92px; font-weight: 600; color: #334; }
+    .value { word-break: break-word; }
+    .ph { display: block; color: #6b7690; font-size: 12px; }
+    li.blocked .type { color: #9b1c1c; }
+    .actions { display: flex; justify-content: flex-end; gap: 8px; }
+    button { font: inherit; border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid #c9d1df; background: #fff; color: #172033; }
+    button.primary { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+    @media (prefers-color-scheme: dark) {
+      .panel { background: #1b2130; color: #e8ecf4; } p, .ph { color: #a3adc2; } .type { color: #d5dbe8; }
+      ul, li { border-color: #2d3548; } button { background: #232a3b; color: #e8ecf4; border-color: #3a4459; }
+      button.primary { background: #3b6cf0; border-color: #3b6cf0; }
+    }`;
 
-  function isGenerating() {
-    return Boolean(document.querySelector(
-      "[data-testid*='stop'], button[aria-label*='Stop' i], button[aria-label*='Durdur' i]"
-    ));
-  }
+  // Dönüş: maskelenecek tespitlerin listesi ya da null (vazgeçildi)
+  function confirmDetections(text, items, blocked) {
+    return new Promise((resolve) => {
+      const host = document.createElement("div");
+      host.id = "turkce-dlp-preview";
+      const root = host.attachShadow({mode: "open"});
+      const style = document.createElement("style");
+      style.textContent = PANEL_CSS;
+      const backdrop = document.createElement("div");
+      backdrop.className = "backdrop";
+      const panel = document.createElement("div");
+      panel.className = "panel";
+      panel.setAttribute("role", "dialog");
+      panel.setAttribute("aria-modal", "true");
+      const title = document.createElement("h2");
+      const info = document.createElement("p");
+      const list = document.createElement("ul");
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      const toCodePoints = [...text];
+      const valueOf = (item) => toCodePoints.slice(item.start, item.end).join("");
+      const checks = [];
 
-  function retireWhenComplete(mapping) {
-    if (!mapping.seenResponse || isGenerating()) return;
-    clearTimeout(mapping.finishTimer);
-    mapping.finishTimer = setTimeout(() => {
-      if (!isGenerating()) {
-        const index = activeMappings.indexOf(mapping);
-        if (index >= 0) activeMappings.splice(index, 1);
-        clearTimeout(mapping.expiryTimer);
+      if (blocked.length) {
+        title.textContent = "Bu mesaj gönderilemez";
+        info.textContent = "Kurum politikası aşağıdaki bilgilerin dış yapay zekâ servislerine gönderilmesini engelliyor. Mesajı düzenleyip tekrar deneyin.";
+        for (const item of blocked) {
+          const row = document.createElement("li");
+          row.className = "blocked";
+          const type = document.createElement("span");
+          type.className = "type";
+          type.textContent = TYPE_LABELS[item.type] || item.type;
+          const value = document.createElement("span");
+          value.className = "value";
+          value.textContent = valueOf(item);
+          row.append(type, value);
+          list.append(row);
+        }
+      } else {
+        title.textContent = "Kişisel veri bulundu";
+        info.textContent = "İşaretli bilgiler gönderilmeden önce yer tutucuyla değiştirilecek; yanıt geldiğinde ekranda geri yerleştirilir. Kişisel veri olmayanların işaretini kaldırabilirsiniz.";
+        for (const item of items) {
+          const row = document.createElement("li");
+          const box = document.createElement("input");
+          box.type = "checkbox";
+          box.checked = true;
+          box.setAttribute("aria-label", `${TYPE_LABELS[item.type] || item.type} maskelensin`);
+          checks.push([box, item]);
+          const type = document.createElement("span");
+          type.className = "type";
+          type.textContent = TYPE_LABELS[item.type] || item.type;
+          const value = document.createElement("span");
+          value.className = "value";
+          value.textContent = valueOf(item);
+          row.append(box, type, value);
+          list.append(row);
+        }
       }
-    }, 30_000);
+
+      const close = (result) => {
+        host.remove();
+        document.removeEventListener("keydown", onKey, true);
+        resolve(result);
+      };
+      const cancel = document.createElement("button");
+      cancel.textContent = blocked.length ? "Tamam" : "Vazgeç";
+      cancel.addEventListener("click", () => close(null));
+      actions.append(cancel);
+      let confirm = null;
+      if (!blocked.length) {
+        confirm = document.createElement("button");
+        confirm.className = "primary";
+        confirm.textContent = "Maskele ve gönder";
+        confirm.addEventListener("click", () => close(checks.filter(([box]) => box.checked).map(([, item]) => item)));
+        actions.append(confirm);
+      }
+      const onKey = (event) => {
+        if (event.key === "Escape") { event.preventDefault(); event.stopImmediatePropagation(); close(null); }
+        else if (event.key === "Enter" && confirm && !event.shiftKey) { event.preventDefault(); event.stopImmediatePropagation(); confirm.click(); }
+      };
+      document.addEventListener("keydown", onKey, true);
+      panel.append(title, info, list, actions);
+      backdrop.append(panel);
+      root.append(style, backdrop);
+      document.documentElement.appendChild(host);
+      (confirm || cancel).focus();
+    });
   }
 
+  // ---------------------------------------------------------------------------
+  // Yanıtta geri eşleme
+  // ---------------------------------------------------------------------------
   function restoreVisibleText(root) {
-    const mappings = nextMappings();
-    if (!mappings.length || !(root instanceof Node)) return;
+    if (!vault.size || !(root instanceof Node)) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         const parent = node.parentElement;
-        if (!parent || parent.closest("textarea, input, [contenteditable='true'], #turkce-dlp-error")) return NodeFilter.FILTER_REJECT;
-        return mappings.some(([placeholder]) => node.nodeValue.includes(placeholder)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        if (!parent || parent.closest("textarea, input, [contenteditable='true'], #turkce-dlp-error, #turkce-dlp-preview")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return node.nodeValue.includes("[") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       }
     });
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
     for (const node of nodes) {
-      for (const mapping of activeMappings) {
-        const inAssistantMessage = node.parentElement?.closest(
-          "[data-message-author-role='assistant'], [data-testid*='assistant-message']"
-        );
-        if (inAssistantMessage && [...mapping.values.keys()].some((placeholder) => node.nodeValue.includes(placeholder))) {
-          mapping.seenResponse = true;
-          retireWhenComplete(mapping);
-        }
-      }
-      node.nodeValue = TurkceDlpCore.restoreText(node.nodeValue, new Map(mappings));
+      const restored = vault.restore(node.nodeValue);
+      if (restored !== node.nodeValue) node.nodeValue = restored;
     }
   }
 
@@ -140,6 +284,9 @@
   });
   observer.observe(document.documentElement, {subtree: true, childList: true, characterData: true});
 
+  // ---------------------------------------------------------------------------
+  // Gönderimi yakalama
+  // ---------------------------------------------------------------------------
   async function intercept(event, composer, replay) {
     if (!enabled || replayingSubmit || pendingSubmit || !composer) return;
     const text = readComposer(composer);
@@ -148,20 +295,28 @@
     event.stopImmediatePropagation();
     pendingSubmit = true;
     try {
-      const masked = await maskPrompt(text);
-      if (masked.values.size) {
-        writeComposer(composer, masked.masked);
+      await vaultReady;
+      const payload = await chrome.runtime.sendMessage({type: "turkce-dlp-detect", text});
+      if (!payload || payload.error || !Array.isArray(payload.detections)) throw new Error("DLP API request failed");
+      const blocked = payload.detections.filter((item) => item.action === "block");
+      let selected = payload.detections.filter((item) => item.action !== "block" && item.action !== "allow");
+      if (blocked.length) {
+        await confirmDetections(text, selected, blocked);
+        return;
+      }
+      if (selected.length && preview) {
+        selected = await confirmDetections(text, selected, []);
+        if (selected === null) return; // kullanıcı vazgeçti; mesaj alanı olduğu gibi kalır
+      }
+      if (selected.length) {
+        const {masked} = vault.mask(text, selected);
+        await saveVault();
+        writeComposer(composer, masked);
         await new Promise((resolve) => requestAnimationFrame(resolve));
-        if (readComposer(composer) !== masked.masked) {
+        if (readComposer(composer).trim() !== masked.trim()) {
           writeComposer(composer, text);
           throw new Error("Composer update could not be verified");
         }
-        const mapping = {values: masked.values, seenResponse: false, finishTimer: null};
-        activeMappings.push(mapping);
-        mapping.expiryTimer = setTimeout(() => {
-          const index = activeMappings.indexOf(mapping);
-          if (index >= 0) activeMappings.splice(index, 1);
-        }, 5 * 60_000);
       }
       replayingSubmit = true;
       replay();
@@ -181,7 +336,7 @@
 
   document.addEventListener("click", (event) => {
     const button = event.target instanceof Element ? event.target.closest("button") : null;
-    if (!isSendButton(button)) return;
+    if (!isSendButton(button) || event.composedPath().some((node) => node?.id === "turkce-dlp-preview")) return;
     const composer = findComposer(button.form || button.closest("form"));
     if (enabled && !composer) {
       event.preventDefault();
@@ -213,6 +368,7 @@
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing || !isComposer(event.target)) return;
+    if (pendingSubmit) { event.preventDefault(); event.stopImmediatePropagation(); return; }
     const composer = event.target;
     const form = composer.closest("form");
     const button = form?.querySelector("button[type='submit']") || [...document.querySelectorAll("button")].find(isSendButton);

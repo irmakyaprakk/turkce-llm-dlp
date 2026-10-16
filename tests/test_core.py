@@ -96,6 +96,7 @@ def test_api_limits_and_does_not_return_detected_values():
     assert response.status_code == 200
     assert "10000000146" not in response.text
     assert response.json()["detections"][0]["type"] == "TCKN"
+    assert response.json()["detections"][0]["action"] == "mask"
 
     too_large = client.post("/v1/process", content=json.dumps({"text": "x" * 100_000}))
     assert too_large.status_code == 413

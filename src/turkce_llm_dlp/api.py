@@ -176,8 +176,15 @@ def health() -> dict:
 @app.post("/v1/detect")
 def detect_route(request: TextRequest) -> dict:
     # Deliberately return only categories/offsets; never return matched values.
+    # Kurum politikası (mask / block / allow) her tespite eklenir; eklenti "block" görünce gönderimi durdurur.
     matches = detection_pipeline.detect(request.text)
-    return {"detections": [{"type": d.type, "start": d.start, "end": d.end} for d in matches], "count": len(matches)}
+    return {
+        "detections": [
+            {"type": d.type, "start": d.start, "end": d.end, "action": gateway.policy.action_for(d.type)}
+            for d in matches
+        ],
+        "count": len(matches),
+    }
 
 
 @app.post("/v1/process")

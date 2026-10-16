@@ -13,7 +13,7 @@ Son kod incelemesi: 12 Ekim 2026. Bu belge, bitirme projesi tanıtım dokümanı
 | FastAPI | Kod ve TestClient doğrulaması hazır | Boyut limitleri, ham eşleşme değerini döndürmeme ve upstream bloklama testleri var. Canlı port dinleme sandbox tarafından engellendi. |
 | NER veri/eğitim hattı | Kod hazır; veri yok | CoNLL dönüştürme, sentetik adres, kalite raporu, split/BIO denetimleri, BERTurk fine-tuning ve manifest var. Ağırlık üretilmedi. |
 | NER çalışma zamanı | Kod/mock test hazır | Yerel yükleme, süreç izolasyonu, yükleme/inference timeout'u ve kural fallback'i eklendi. Gerçek model/GPU ile doğrulanmadı. |
-| Chrome eklentisi | İlk Manifest V3 sürümü hazır | ChatGPT/Claude için yakalama, yerel API kontrolü, maskeleme ve yanıt geri eşleme taslağı var. Değişken site DOM'larında elle sınanmadı; dosya/görsel ve bilinmeyen gönderim yolları kapsanmıyor. |
+| Chrome eklentisi | v1.0 hazır | Okunabilir Türkçe yer tutucular, sohbet bazlı eşleme (oturum belleği), Türkçe ek uyumuyla geri eşleme, gönderim öncesi önizleme, politika engeli. Birim + Playwright uçtan uca testleri (sahte sohbet sayfası). Gerçek ChatGPT/Claude DOM değişikliklerine karşı elle denenmeli; dosya/görsel kapsanmıyor. |
 | CI | İş akışı hazır | Python 3.10–3.13 pytest ve Node yardımcı testleri. GitHub üzerinde çalıştırılmadı. |
 | Docker Compose | Yapılandırma hazır | Loopback portu, root olmayan kullanıcı, salt-okunur root dosya sistemi ve demo upstream ayarlı. `compose config` geçti; Docker daemon erişim izni olmadığından imaj derlenmedi. |
 | Ölçümler | Başlangıç raporları hazır | Bypass raporu `reports/bypass-evaluation.json`; yerel NER-kapalı p50/p95 raporu `reports/latency-evaluation.json`. Bunlar üretim veya model ölçümü değildir. |

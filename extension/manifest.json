@@ -1,19 +1,33 @@
 {
   "manifest_version": 3,
   "name": "Türkçe LLM DLP",
-  "version": "0.1.0",
-  "description": "ChatGPT ve Claude istemlerini yerel DLP API'siyle kontrol eder.",
-  "permissions": ["storage"],
-  "background": {"service_worker": "background.js"},
+  "version": "1.0.0",
+  "description": "ChatGPT ve Claude'a giden mesajlardaki kişisel verileri yerel DLP servisiyle bulur, yer tutucuyla değiştirir ve yanıtta geri yerleştirir.",
+  "permissions": [
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://claude.ai/*",
     "http://127.0.0.1:8000/*"
   ],
-  "action": {"default_popup": "popup.html"},
-  "content_scripts": [{
-    "matches": ["https://chatgpt.com/*", "https://claude.ai/*"],
-    "js": ["core.js", "content.js"],
-    "run_at": "document_idle"
-  }]
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://claude.ai/*"
+      ],
+      "js": [
+        "core.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
 }

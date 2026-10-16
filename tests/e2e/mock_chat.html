@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="tr">
+<head><meta charset="utf-8"><title>Sahte sohbet</title></head>
+<body>
+  <!-- ChatGPT'ye benzeyen en küçük sohbet sayfası: eklentinin uçtan uca testi için.
+       Sahte sohbet botu yalnızca kendisine GÖNDERİLEN metni görür (window.__sent) ve yer tutucuları ekleriyle geri yazar. -->
+  <main id="thread"></main>
+  <form id="composer-form">
+    <textarea id="prompt-textarea" aria-label="Mesaj yaz"></textarea>
+    <button type="submit" data-testid="send-button" aria-label="Send">Gönder</button>
+  </form>
+  <script>
+    // ?editor=ce: Claude benzeri zengin metin alanı (contenteditable) ve form dışı gönder düğmesi
+    if (new URLSearchParams(location.search).get("editor") === "ce") {
+      document.getElementById("composer-form").outerHTML =
+        '<div id="ce-box" contenteditable="true" role="textbox" aria-label="Mesaj yaz"></div>' +
+        '<button id="ce-send" type="button" aria-label="Send message">Gönder</button>';
+      document.getElementById("ce-send").addEventListener("click", () => {
+        const box = document.getElementById("ce-box");
+        const text = box.innerText;
+        window.__sent.push(text);
+        box.textContent = "";
+        const div = document.createElement("div");
+        div.dataset.messageAuthorRole = "user";
+        div.textContent = text;
+        document.getElementById("thread").append(div);
+      });
+    }
+    window.__sent = [];
+    const thread = document.getElementById("thread");
+    function bubble(role, text) {
+      const div = document.createElement("div");
+      div.dataset.messageAuthorRole = role;
+      div.textContent = text;
+      thread.append(div);
+    }
+    document.getElementById("composer-form")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const box = document.getElementById("prompt-textarea");
+      const text = box.value;
+      window.__sent.push(text);
+      box.value = "";
+      bubble("user", text);
+      if (!location.pathname.startsWith("/c/")) history.pushState({}, "", "/c/sohbet0001abc");
+      const placeholders = [...new Set(text.match(/\[[^\]\s]+_\d+\]/g) || [])];
+      setTimeout(() => {
+        const reply = placeholders.length
+          ? `Tamam. ${placeholders.map((p) => `${p}'e`).join(", ")} not aldım.`
+          : "Tamam, not aldım.";
+        bubble("assistant", reply);
+      }, 300);
+    });
+  </script>
+</body>
+</html>

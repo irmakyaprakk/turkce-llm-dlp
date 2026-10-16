@@ -10,3 +10,4 @@ build/
 /models/ner/
 .DS_Store
 /* outputs/
+node_modules/
