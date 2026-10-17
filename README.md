@@ -1,7 +1,19 @@
 # Türkçe Kurumsal LLM DLP
 [![CI](https://github.com/irmakyaprakk/turkce-llm-dlp/actions/workflows/ci.yml/badge.svg)](https://github.com/irmakyaprakk/turkce-llm-dlp/actions/workflows/ci.yml)
 
-Türkçe kurumsal LLM DLP prototipi. Tespit, istek kapsamlı maskeleme/geri eşleme, politika, FastAPI ve OpenAI uyumlu sağlayıcı adaptörü vardır. Gerçek sağlayıcı varsayılan olarak kapalıdır. ChatGPT/Claude için Manifest V3 eklentisinin ilk sürümü `extension/` altındadır; gerçek web arayüzüyle manuel doğrulaması henüz yapılmadı. Türkçe NER modeli, kalıcı audit ve belge/OCR modülleri henüz hazır değildir.
+Türkçe kurumsal LLM DLP prototipi: ChatGPT ve Claude'a giden mesajlardaki kişisel verileri yerelde bulur, yer tutucuyla değiştirir ve yanıtta geri yerleştirir. Ham değerler bilgisayardan çıkmaz.
+
+| Bileşen | Durum |
+|---|---|
+| Kural tabanlı tespit (TCKN, IBAN, kart, e-posta, telefon, gizli anahtar) | Hazır; checksum/Luhn/mod-97 ve bağlam denetimi |
+| Türkçe NER (kişi, kurum, yer, adres) | Hazır: BERTurk ince ayarı (augmented-v4) + kural katmanı + yer adı sözlüğü (hibrit). Ağırlıklar depoda yok |
+| FastAPI servisi, politika (`mask`/`block`/`allow`), maskeleme/geri eşleme, OpenAI uyumlu gateway | Hazır; gerçek sağlayıcı varsayılan olarak kapalı |
+| Chrome eklentisi (`extension/`) | v1.1: önizleme, sohbet bazlı eşleme, Türkçe ek uyumu, fail-closed ağ kilidi. Gerçek ChatGPT'de doğrulandı |
+| Anonim denetim günlüğü ve yönetici paneli (`/panel`) | Hazır; yalnız tür başına sayılar |
+| macOS arka plan servisi | Hazır (`scripts/macos/`) |
+| Belge/OCR (PDF, Word, görsel) | Henüz yok |
+
+Deney sonuçları ve değerlendirme protokolü: `reports/ner-experiments.md`, `docs/evaluation-protocol.md`.
 
 ## Çalıştırma
 
@@ -89,7 +101,18 @@ Her dönüşüm için en az 50 geçerli ve 50 checksum-geçersiz sentetik örnek
 python scripts/benchmark_latency.py --iterations 100 --warmup 20
 ```
 
-Rapor p50/p95 değerlerini ve Python/işletim sistemi bilgisini içerir. Bu, yalnızca yerel çekirdek ölçümüdür; HTTP, sağlayıcı ağı ve NER modeli gecikmesi dahil değildir. Sonuçlar donanıma/çalışma ortamına özeldir.
+Rapor p50/p95 değerlerini ve Python/işletim sistemi bilgisini içerir. Bu, yalnızca yerel çekirdek ölçümüdür; HTTP, sağlayıcı ağı ve NER modeli gecikmesi dahil değildir. Sonuçlar donanıma/çalışma ortamına özeldir. Modelli tespitte yerel CPU'da tek mesaj ısınmadan sonra yaklaşık 50 ms sürer (ayrıntılı modelli gecikme raporu henüz yok).
+
+## Yazım biçimi dayanıklılığı
+
+Üretim boru hattını (model + kurallar + sözlük) aynı cümlelerin orijinal, küçük ve BÜYÜK harfli kopyalarında ölç:
+
+```bash
+python training/ner/build_gold_set.py --out-dir data/ner/processed/realistic-v3
+python training/ner/evaluate_casing.py --model-dir <model klasörü> --data-dir data/ner/processed/realistic-v3
+```
+
+v4 modeli geliştirme setinde hibrit F1: orijinal 0,973, küçük 0,935, BÜYÜK 0,790 (batch1-2); günlük dil partisinde (batch3) 0,851 / 0,838 / 0,681. BÜYÜK harf en zayıf biçimdir; augmented-v5 bu açığı hedefler (bkz. `reports/ner-experiments.md`).
 
 ## Yönetici paneli ve anonim denetim günlüğü
 
@@ -108,7 +131,13 @@ Eklenti popup'ındaki **"Yapay zekânın gördüğünü göster"** anahtarı yan
 
 ## Sınırlar ve sonraki aşamalar
 
-Secret kuralları eksiksiz değildir; entropy ve bağlam eşikleri yanlış pozitif/negatif üretebilir. NER arayüzüne henüz eğitilmiş Türkçe model bağlanmadı; timeout davranışı mock worker ile test edilmiştir, gerçek model/GPU üzerinde doğrulanmalıdır. Harf araya sokma, sayıyı yazıyla yazma, kodlanmış veri ve çok mesajlı parçalama kapsam dışıdır. Sonraki aşamalar: belge/OCR işleme, büyük-küçük harf dayanıklılığı ölçümü ve deneyler. API şu an loopback'e bağlıdır; dağıtım öncesi auth/TLS ve güvenlik sertleştirmesi gerekir.
+- Secret kuralları eksiksiz değildir; entropy ve bağlam eşikleri yanlış pozitif/negatif üretebilir.
+- NER modeli BÜYÜK harfli ve günlük yazımda zayıflar (yukarıdaki ölçüm); model kaçırdığında kural katmanı yalnız açık ipuçlarında (ör. "benim adım …") boşluk doldurur.
+- Harf araya sokma, sayıyı yazıyla yazma, kodlanmış veri ve çok mesajlı parçalama kapsam dışıdır.
+- Eklenti: yüklenen dosya ve görsellerin içeriği, sesli giriş ve eklenti kapalıyken gönderim kapsanmaz. Ağ kilidi sayfanın kendi isteklerini ve iç çerçeveleri kapsar, bilinen gönderim adresinde tanınmayan gövde biçimini durdurur; Web Worker / SharedWorker istekleri kilitlenmez, yalnız arka plandaki `webRequest` tespit ağı görür ve uyarır (MV3'te engelleme değil tespit). Yapıştırılan metin düz metin olarak alınır, biçim (tablo, kod bloğu) kaybolur. Ağ kilidi eklenti yüklendikten/yenilendikten sonra açılan sekmelerde çalışır. ChatGPT ve Claude resmî eklenti API'si sunmadığından site güncellemelerinden sonra elle denenmelidir; Claude ve oturum açılmış ChatGPT'deki ağ biçimi yalnız sahte sayfada test edildi.
+- API loopback'e bağlıdır; dağıtım öncesi auth/TLS ve güvenlik sertleştirmesi gerekir.
+
+Sonraki aşamalar: belge/OCR işleme (Aşama 5); modelli gecikme raporu, Presidio karşılaştırması ve fayda kaybı deneyi (Aşama 6); Docker imajı, model kartı, demo ve nihai rapor (Aşama 7).
 
 ## Geliştirme
 
@@ -118,7 +147,12 @@ pre-commit install          # her commit öncesi ruff, format ve gizli anahtar k
 ruff check . && ruff format --check .
 python -m pytest -q
 node --test extension/core.test.cjs
+scripts/run_e2e.sh          # eklenti uçtan uca: gerçek Chromium + yerel servis + sahte sohbet sayfası
 ```
+
+Uçtan uca test 8000 portunda kendi servisini başlatır; macOS arka plan servisi açıksa önce durdurun
+(`launchctl bootout gui/$(id -u)/com.turkcedlp.service`, sonra `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.turkcedlp.service.plist`).
+Playwright: `npm install --no-save playwright@1.56.0 && npx playwright install chromium` (ya da `PLAYWRIGHT_MODULE` ile mevcut bir kurulum).
 
 ## Lisans
 

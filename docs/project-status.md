@@ -1,38 +1,48 @@
 # Proje durumu
 
-Son kod incelemesi: 12 Ekim 2026. Bu belge, bitirme projesi tanıtım dokümanı ve literatür taramasındaki teslimatları mevcut depoyla karşılaştırır.
+Son güncelleme: 17 Ekim 2026. Bu belge, bitirme projesi tanıtım dokümanı ve literatür taramasındaki teslimatları mevcut depoyla karşılaştırır. Ayrıntılı deney sonuçları: `reports/ner-experiments.md`.
 
-## Kullanıcı verisi gerektirmeden hazırlananlar
+## Aşamalar
+
+| Aşama | Kapsam | Durum |
+|---|---|---|
+| 1 | Kural tabanlı tespit, normalizasyon, maskeleme/geri eşleme, politika, FastAPI, gateway | Bitti |
+| 2 | NER veri hattı, BERTurk ince ayarı, değerlendirme protokolü, mühürlü testler | Bitti (v4 üretimde). Veri kaynakları: `reports/ner-experiments.md` |
+| 3 | Chrome eklentisi | Bitti (v1.1, gerçek ChatGPT'de doğrulandı) |
+| 4 | Anonim denetim günlüğü, yönetici paneli, macOS arka plan servisi | Bitti |
+| — | Günlük yazım dayanıklılığı (augmented-v5) | Sürüyor: veri hazır, eğitim Colab'da; bağımsız değerlendirme için sealed3 toplanacak (`docs/sealed3-talimat.md`) |
+| 5 | Belge/OCR: PDF, Word ve görsel maskeleme | Başlanmadı |
+| 6 | Modelli gecikme raporu, Presidio karşılaştırması, fayda kaybı deneyi | Başlanmadı |
+| 7 | Docker imajı, model kartı, demo, nihai rapor | Başlanmadı |
+
+## Bileşenler
 
 | Bileşen | Durum | Kanıt / sınır |
 |---|---|---|
-| TCKN, IBAN, kredi kartı, e-posta, telefon ve secret tespiti | Kod hazır | Checksum, mod-97, Luhn, telefon biçim + bağlam denetimi, bilinen secret biçimleri ve bağlam/entropy denetimi. Sınıflandırıcı kuralları gerçek veride ayrıca ölçülmeli. |
-| Unicode/bypass normalizasyonu | Kod ve sentetik ölçüm hazır | Ayraç, zero-width ve fullwidth için açık/kapalı koşullarda 50 pozitif + 50 negatif örnek. Yalnızca TCKN ve bu üç dönüşüm için geçerli. |
-| İstek kapsamlı maskeleme ve geri eşleme | Çekirdek/test hazır | Tekrarlı değer, çakışan placeholder ve parçalı SSE senaryoları test ediliyor. |
-| Politika ve sağlayıcı sınırı | Çekirdek/test hazır | YAML `mask/block/allow`, HTTPS OpenAI uyumlu adaptör ve hata metni sanitizasyonu var. Harici sağlayıcı varsayılan değil. |
-| FastAPI | Kod ve TestClient doğrulaması hazır | Boyut limitleri, ham eşleşme değerini döndürmeme ve upstream bloklama testleri var. Canlı port dinleme sandbox tarafından engellendi. |
-| NER veri/eğitim hattı | Kod hazır; veri yok | CoNLL dönüştürme, sentetik adres, kalite raporu, split/BIO denetimleri, BERTurk fine-tuning ve manifest var. Ağırlık üretilmedi. |
-| NER çalışma zamanı | Kod/mock test hazır | Yerel yükleme, süreç izolasyonu, yükleme/inference timeout'u ve kural fallback'i eklendi. Gerçek model/GPU ile doğrulanmadı. |
-| Chrome eklentisi | v1.0 hazır | Okunabilir Türkçe yer tutucular, sohbet bazlı eşleme (oturum belleği), Türkçe ek uyumuyla geri eşleme, gönderim öncesi önizleme, politika engeli. Birim + Playwright uçtan uca testleri (sahte sohbet sayfası). Gerçek ChatGPT/Claude DOM değişikliklerine karşı elle denenmeli; dosya/görsel kapsanmıyor. |
-| CI | İş akışı hazır | Python 3.10–3.13 pytest ve Node yardımcı testleri. GitHub üzerinde çalıştırılmadı. |
-| Docker Compose | Yapılandırma hazır | Loopback portu, root olmayan kullanıcı, salt-okunur root dosya sistemi ve demo upstream ayarlı. `compose config` geçti; Docker daemon erişim izni olmadığından imaj derlenmedi. |
-| Ölçümler | Başlangıç raporları hazır | Bypass raporu `reports/bypass-evaluation.json`; yerel NER-kapalı p50/p95 raporu `reports/latency-evaluation.json`. Bunlar üretim veya model ölçümü değildir. |
+| TCKN, IBAN, kredi kartı, e-posta, telefon ve secret tespiti | Hazır | Checksum, mod-97, Luhn; telefon biçim + bağlam denetimi (öneksiz cep/sabit hat dahil); bilinen secret biçimleri ve bağlam/entropy denetimi. |
+| Unicode/bypass normalizasyonu | Hazır, sentetik ölçüm | Ayraç, zero-width ve fullwidth için 50 pozitif + 50 negatif örnek (`reports/bypass-evaluation.json`). Yalnız TCKN ve bu üç dönüşüm. |
+| İstek kapsamlı maskeleme ve geri eşleme | Hazır | Tekrarlı değer, çakışan placeholder ve parçalı SSE senaryoları test ediliyor. |
+| Politika ve sağlayıcı sınırı | Hazır | YAML `mask/block/allow`, HTTPS OpenAI uyumlu adaptör, hata metni sanitizasyonu. Harici sağlayıcı varsayılan değil. |
+| Türkçe NER (kişi, kurum, yer, adres) | Üretimde: v4 | BERTurk + augmented-v4 + kural katmanı + yer adı sözlüğü + tesis kuralı + adres birleşimi. Mühürlü test 2 (sealed2, 100 mesaj) resmî hibrit F1 0,865 ± 0,011; geliştirme seti 0,973. Süreç izolasyonu, zaman aşımı ve kural fallback'i gerçek modelle çalışıyor; CPU'da tek mesaj ~50 ms. |
+| Yazım biçimi dayanıklılığı | Ölçüldü, iyileştirme sürüyor | `training/ner/evaluate_casing.py`. v4 hibrit F1 (geliştirme, batch1-2): orijinal 0,973 / küçük 0,935 / BÜYÜK 0,790; günlük dil partisi (batch3): 0,851 / 0,838 / 0,681. |
+| Chrome eklentisi | v1.1 | Önizleme, sohbet bazlı eşleme, Türkçe ek uyumu, politika engeli, yapıştırmanın mesaj alanında kontrolü. Fail-closed ağ kilidi (`guard.js`): onaysız metin, bilinen gönderim adresinde tanınmayan gövde biçimi ve aynı kökenli iç çerçeve istekleri durur. Web Worker istekleri `webRequest` tespit ağıyla yalnız yakalanır (uyarı + `leak_detected`; MV3'te engelleme değil). Gerçek oturumsuz ChatGPT'de doğrulandı; Claude ve oturumlu ChatGPT ağ biçimi yalnız sahte sayfada test edildi. Dosya/görsel içeriği kapsanmıyor. |
+| Denetim günlüğü ve yönetici paneli | Hazır | Yalnız dakikaya yuvarlanmış zaman, site, karar (maskelendi / temiz / engellendi / vazgeçildi / kontrolsüz gönderim) ve tür başına sayılar; metin/değer/hash tutulmaz. `/panel` sıkı CSP ile. |
+| macOS arka plan servisi | Hazır | LaunchAgent; oturum açılınca başlar, çökerse yeniden başlar. |
+| CI | Çalışıyor | Lint, Python 3.10–3.13 pytest, eklenti birim testi ve Playwright uçtan uca testi. 16–17 Ekim arası e2e işi, betiğin çalıştırma izni kaybolduğu için başarısızdı; düzeltildi. |
+| Docker Compose | Yapılandırma hazır | Loopback portu, root olmayan kullanıcı, salt-okunur kök dosya sistemi. İmaj henüz derlenip denenmedi. |
 
-## Son yerel kontroller
+## Son yerel kontroller (17 Ekim 2026)
 
-- Python: 30 test geçti.
-- JavaScript yardımcıları: 3 Node testi geçti.
-- Python kaynakları derlendi; CLI yardım komutları, paket wheel üretimi/importu ve JSON/YAML yapılandırmaları kontrol edildi.
-- Bir Starlette/AnyIO deprecation uyarısı var; test başarısızlığı değil.
-- Canlı Docker derlemesi ve canlı tarayıcı sayfalarında eklenti denemesi bu ortamda doğrulanmadı.
+- Python: 230 test geçti; ruff temiz.
+- Eklenti: 11 birim testi ve 21 uçtan uca senaryo geçti (üç ardışık koşuda kararlı).
+- Gerçek ChatGPT (oturumsuz; istekler test kancasıyla iptal edildi): önizleme gönderimden önce açılıyor, ağa yalnız maskeli metin çıkıyor; doğrudan fetch/XHR, tanınmayan gövde biçimi, about:blank iç çerçeve ve olay yakalaması kapalıyken sitenin kendi gönderimi ağ kilidinde duruyor; Web Worker gönderimi tespit edilip uyarılıyor.
+- Bir Starlette/httpx kullanımdan kaldırma uyarısı var; test başarısızlığı değil.
 
-## Kullanıcıyla birlikte yapılacak veri kapısı
+## Açık işler
 
-1. Turkish Wiki NER veri kaynağını lisans ve atıf dosyalarıyla edinmek.
-2. Etiketleri, split dosyalarını ve lisans/atıf koşullarını incelemek.
-3. Yerel hazırlama betiğini çalıştırıp aggregate kalite raporunu ve sentetik adres örneklerini gözden geçirmek.
-4. Veri uygun bulunursa GPU ortamında baseline eğitmek. Bu adıma kadar ham veri veya model ağırlığı repoya alınmayacak.
-
-## Sonraki proje teslimatları
-
-Veri kapısından sonra NER sonuçlarını gerçek modelle ölçmek, bağımsız holdout ve Presidio kıyasını yapmak, eşik/hata analizini tamamlamak ve ancak sonra modeli varsayılan dışı şekilde açmak gerekir. Ayrıca anonim audit günlüğü/yönetici paneli, GitHub push/webhook koruması, PDF/Word/OCR görsel maskeleme, fayda deneyi, performans/dağıtım sertleştirmesi, demo ve nihai rapor henüz yapılmadı.
+1. augmented-v5 sonuçları: v4 ile üç yazım biçiminde karşılaştırma ve realistic-v2'de gerileme kontrolü (batch3 iyimser, aynı kaynak); karar sealed3 ile bir kez.
+2. sealed3: bağımsız yazarlardan 50–100 mesaj toplamak, elle etiketlemek, mühürlemek.
+3. Eklentinin Claude ve oturumlu ChatGPT'de elle denenmesi (ağ kilidi, gönderim adresleri ve yapıştırma).
+4. GitHub push/webhook koruması (tanıtım dokümanındaki teslimat; henüz yok).
+5. Aşama 5–7 (yukarıdaki tablo).
+6. Adres kuralı önceliğinin güven tabanlı hâle getirilmesi (sealed2 analizinde açık kalan iş).
