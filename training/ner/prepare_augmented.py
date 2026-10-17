@@ -36,6 +36,7 @@ for _path in (ROOT, ROOT / "src"):
 from training.ner import context_templates as T
 from training.ner import context_templates_v3 as V3
 from training.ner import context_templates_v4 as V4
+from training.ner import context_templates_v5 as V5
 from training.ner.augment import (
     IL_BY_PLATE,
     AddressParts,
@@ -53,7 +54,7 @@ from training.ner.prepare_data import validate_splits
 
 LABELS_PATH = ROOT / "training/ner/labels.json"
 SLOT_RE = re.compile(
-    r"\{(PER|FIRST|ORG|LOC|ADDR|STREET|MAH|NUM|DATE|TIME|AMOUNT|TRACK|BIZNAME|BIZ|BRAND|ILCE)"
+    r"\{(PER|FIRST|ORG|LOC|ADDR|STREET|MAH|NUM|DATE|TIME|AMOUNT|TRACK|BIZNAME|BIZ|BRAND|ILCE|EDU|AMBF|AMBL|LIVE|STUDY|WORK)"
     r"(?::(DAKI|DAN|DA|E|IN|I|LARDAN|LARDA|LARA|LAR|LA))?\}"
 )
 SLOT_LABEL = {
@@ -68,6 +69,9 @@ SLOT_LABEL = {
     "BIZNAME": "ORG",
     "BRAND": "ORG",
     "ILCE": "LOCATION",
+    "EDU": "ORG",
+    "AMBF": "PERSON",
+    "AMBL": "LOCATION",
 }
 MONTHS = ("Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık")
 
@@ -76,6 +80,16 @@ CONTEXT_VARIANTS = (("orig", 0.50), ("lower", 0.15), ("lower_ascii", 0.10), ("ch
 ADDRESS_VARIANTS = (("orig", 0.60), ("lower", 0.20), ("chat", 0.20))
 # v4 gündelik çerçeveler: ağırlıkla küçük harf, kesme işaretsiz (ek bitişik), ASCII
 INFORMAL_VARIANTS = (("lower_noapos", 0.40), ("chat", 0.25), ("lower", 0.15), ("noapos", 0.10), ("orig", 0.10))
+# v5 tanıtım/istek dili: ağırlıkla küçük harf ve bitişik ek; BÜYÜK ve karışık harf payı v4'ten yüksek
+V5_VARIANTS = (
+    ("lower_noapos", 0.35),
+    ("chat", 0.15),
+    ("lower", 0.10),
+    ("mixed", 0.15),
+    ("upper", 0.12),
+    ("noapos", 0.05),
+    ("orig", 0.08),
+)
 TYPO_RATE = 0.25
 
 
@@ -98,7 +112,9 @@ def load_gold(manual_dir: Path) -> tuple[set[str], set[str], dict[str, set[str]]
     texts, addresses = set(), set()
     entities: dict[str, set[str]] = {"PERSON": set(), "ORG": set(), "LOCATION": set()}
     # Mühürlü final test de dahil: eğitim verisi ne geliştirme ne final cümlelerini/adlarını içermemeli.
-    for path in sorted([*manual_dir.glob("realistic_*.txt"), *manual_dir.glob("sealed/*.txt")]):
+    # sealed2: yalnız etiketli dosyalar (kaynak/ ham metinleri okunmaz); içerik yalnız dışlama için kullanılır.
+    paths = [*manual_dir.glob("realistic_*.txt"), *manual_dir.glob("sealed/*.txt"), *manual_dir.glob("sealed2/*.txt")]
+    for path in sorted(paths):
         for raw in path.read_text(encoding="utf-8").splitlines():
             line = raw.strip()
             if not line or line.startswith("#"):
@@ -258,6 +274,76 @@ class FillerV4(Filler):
         return super().value(slot, has_suffix)
 
 
+class FillerV5(FillerV4):
+    """v5 slotları: kurum (okul/üniversite/hastane/belediye), sözcük anlamı da olan ad ve ilçe.
+
+    Geliştirme ve mühürlü setlerdeki adlar, ilçeler ve kurumlar kullanılmaz: ad için ilk sözcük, ilçe ve kurum
+    için önek eşleşmesi aranır ("bucakta" → "Bucak" elenir). Ayrı RNG; v1–v4 satırları değişmez.
+    """
+
+    def __init__(self, rng, address_pool, gold_entities, original_ratio=0.0):
+        super().__init__(rng, address_pool, gold_entities, original_ratio)
+        from turkce_llm_dlp._gazetteer_data import load_gazetteer
+
+        gold_first = {name.split()[0] for name in gold_entities["PERSON"] if name}
+        gold_loc, gold_org = gold_entities["LOCATION"], gold_entities["ORG"]
+
+        def used_in(gold: set[str], value: str) -> bool:
+            k = key(value)
+            return any(g.startswith(k) for g in gold)
+
+        self.amb_first = [n for n in V5.AMBIGUOUS_FIRST_NAMES if key(n) not in gold_first]
+        amb_names = {key(n) for n in V5.AMBIGUOUS_FIRST_NAMES}
+        places = load_gazetteer()["places"]
+        self.amb_places = sorted(
+            e["name"]
+            for e in places.values()
+            if e["kind"] in ("il", "ilce")
+            and e["tier"] == "cap"
+            and not used_in(gold_loc, e["name"])
+            and key(e["name"]) not in amb_names
+        )
+        provinces = [n for n in IL_BY_PLATE.values() if not used_in(gold_loc, n)]
+        self.provinces = provinces
+        institutions = [f"{n} Üniversitesi" for n in V5.NAMED_UNIVERSITIES]
+        institutions = [i for i in institutions if not used_in(gold_org, i)]
+        self.universities = institutions
+        self._gold_org = gold_org
+        self.blocked_edu = len(V5.NAMED_UNIVERSITIES) - len(institutions)
+
+    def institution(self) -> str:
+        rng = self.rng
+        for _ in range(50):
+            roll = rng.random()
+            if roll < 0.45:
+                value = rng.choice(self.universities)
+            elif roll < 0.65:
+                value = f"{rng.choice(self.provinces)} {rng.choice(V5.HOSPITAL_KINDS)}"
+            elif roll < 0.85:
+                value = f"{self.person()} {rng.choice(V5.SCHOOL_KINDS)}"
+            else:
+                value = f"{rng.choice(self.ilceler)} Belediyesi"
+            if not any(g.startswith(key(value)) for g in self._gold_org):
+                return value
+        raise RuntimeError("Geliştirme setiyle çakışmayan kurum üretilemedi.")
+
+    def value(self, slot: str, has_suffix: bool) -> str:
+        rng = self.rng
+        if slot == "EDU":
+            return self.institution()
+        if slot == "AMBF":
+            return rng.choice(self.amb_first)
+        if slot == "AMBL":
+            return rng.choice(self.amb_places)
+        if slot == "LIVE":
+            return rng.choice(V5.LIVE)
+        if slot == "STUDY":
+            return rng.choice(V5.STUDY)
+        if slot == "WORK":
+            return rng.choice(V5.WORK)
+        return super().value(slot, has_suffix)
+
+
 def apply_typo(text: str, spans, rng: random.Random):
     """Uzun bir sözcükten bir harf düşürür (klavye hatası); span'ları kaydırır."""
     words = [m for m in re.finditer(r"[^\W\d_]{5,}", text)]
@@ -271,7 +357,14 @@ def apply_typo(text: str, spans, rng: random.Random):
 
 
 def generate_informal(
-    templates, count: int, filler: FillerV4, rng: random.Random, source: str, gold_texts: set[str], seen: set[str]
+    templates,
+    count: int,
+    filler: FillerV4,
+    rng: random.Random,
+    source: str,
+    gold_texts: set[str],
+    seen: set[str],
+    variants: tuple[tuple[str, float], ...] = INFORMAL_VARIANTS,
 ) -> list[dict]:
     rows, attempts = [], 0
     while len(rows) < count and attempts < count * 20:
@@ -280,7 +373,7 @@ def generate_informal(
         text, spans = render_template(template, filler, pronounce=V4.PRONUNCIATION)
         if rng.random() < TYPO_RATE:
             text, spans = apply_typo(text, spans, rng)
-        row = make_row("", source, text, spans, weighted(rng, INFORMAL_VARIANTS))
+        row = make_row("", source, text, spans, weighted(rng, variants))
         k = key(row["text"])
         if k in seen or k in gold_texts:
             continue
@@ -474,9 +567,18 @@ def main() -> None:
         metavar=("TRAIN", "DEV"),
         help="v4 gündelik dil çerçevelerinden üretilecek cümle sayısı (v4: 12000 800)",
     )
+    ap.add_argument(
+        "--v5-informal",
+        type=int,
+        nargs=2,
+        default=(0, 0),
+        metavar=("TRAIN", "DEV"),
+        help="v5 tanıtım/istek dili çerçevelerinden üretilecek cümle sayısı (v5: 8000 600)",
+    )
     args = ap.parse_args()
 
     rng = random.Random(args.seed)
+    rng_v5 = random.Random(args.seed + 5)
     # v4 ayrı RNG kullanır: v3 satırları aynı tohumla aynen üretilir (yalnız karıştırma sırası değişir).
     rng_v4 = random.Random(args.seed + 4)
     gold_texts, gold_addresses, gold_entities = load_gold(args.manual_dir)
@@ -560,6 +662,28 @@ def main() -> None:
                 v4_negatives, args.v4_informal[index] // 6, filler_v4, rng_v4, "generated-negative-v4", gold_texts, seen
             )
             rows += v4_rows
+        if args.v5_informal[index]:
+            filler_v5 = FillerV5(rng_v5, pools[split], gold_entities, args.osm_original_ratio)
+            v5_templates = V5.TRAIN_TEMPLATES_V5 if split == "train" else V5.DEV_TEMPLATES_V5
+            v5_negatives = V5.TRAIN_NEGATIVES_V5 if split == "train" else V5.DEV_NEGATIVES_V5
+            v5_args = (filler_v5, rng_v5)
+            rows += generate_informal(
+                v5_templates, args.v5_informal[index], *v5_args, "generated-informal-v5", gold_texts, seen, V5_VARIANTS
+            )
+            rows += generate_informal(
+                v5_negatives,
+                args.v5_informal[index] // 6,
+                *v5_args,
+                "generated-negative-v5",
+                gold_texts,
+                seen,
+                V5_VARIANTS,
+            )
+            report_v5 = {
+                "ambiguous_first_names": len(filler_v5.amb_first),
+                "ambiguous_places": len(filler_v5.amb_places),
+                "blocked_named_universities": filler_v5.blocked_edu,
+            }
         rng.shuffle(rows)
         splits[split] = rows
 
@@ -587,6 +711,8 @@ def main() -> None:
         "v3_contexts": list(args.v3_contexts),
         "mention_replace": list(args.mention_replace),
         "v4_informal": list(args.v4_informal),
+        "v5_informal": list(args.v5_informal),
+        "v5_fill_pools": report_v5 if args.v5_informal[0] or args.v5_informal[1] else None,
         "rows": {s: len(r) for s, r in splits.items()},
         "sources": {s: dict(Counter(r["source"] for r in rows)) for s, rows in splits.items()},
         "variants": {s: dict(Counter(r.get("variant", "orig") for r in rows)) for s, rows in splits.items()},
@@ -621,6 +747,8 @@ def main() -> None:
             "turkish-wikiNER-mention-swap": "CC-BY-SA-4.0 (türetilmiş; varlık adları değiştirildi)",
             "generated-informal-v4": "yerel üretim; ilçe adları PTT listesi (MIT paket), adresler ODbL-1.0",
             "generated-negative-v4": "yerel üretim",
+            "generated-informal-v5": "yerel üretim; ilçe adları PTT listesi (MIT paket), kurum adları kamuya açık",
+            "generated-negative-v5": "yerel üretim",
         },
         "note": "Bağlam cümleleri yapaydır; gerçek kullanıcı başarısı yalnızca altın test setiyle ölçülür.",
     }

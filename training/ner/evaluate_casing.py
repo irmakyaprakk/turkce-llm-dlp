@@ -62,6 +62,7 @@ def main() -> None:
     ap.add_argument("--splits", nargs="+", default=["dev", "test"])
     ap.add_argument("--batch", nargs="*", default=[], help="yalnız bu partiler (ör. realistic_batch3)")
     ap.add_argument("--output-json", type=Path)
+    ap.add_argument("--device", type=int, default=-1, help="-1: CPU, 0: ilk GPU (Colab)")
     ap.add_argument("--show-errors", choices=sorted(VARIANTS), nargs="*", default=[])
     args = ap.parse_args()
     if "sealed" in str(args.data_dir):
@@ -70,7 +71,7 @@ def main() -> None:
     rows = [row for split in args.splits for row in read_jsonl(args.data_dir / f"{split}.jsonl")]
     if args.batch:
         rows = [row for row in rows if row.get("batch") in args.batch]
-    model = HuggingFaceNERRecognizer.from_local_model(args.model_dir, inference_timeout_seconds=30)
+    model = HuggingFaceNERRecognizer.from_local_model(args.model_dir, device=args.device, inference_timeout_seconds=30)
     rules = [RuleEntityRecognizer(), LocationGazetteer(), FacilityRecognizer()]
     pipelines = {
         "hybrid": DetectionPipeline([*rules, model]),

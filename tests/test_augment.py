@@ -14,7 +14,7 @@ from training.ner.augment import (
     tr_lower,
     tr_upper,
 )
-from training.ner.prepare_augmented import Filler, FillerV4, apply_typo, key, render_template
+from training.ner.prepare_augmented import Filler, FillerV4, FillerV5, apply_typo, key, render_template
 
 
 @pytest.mark.parametrize(
@@ -217,3 +217,29 @@ def test_typo_keeps_spans_aligned():
         assert len(new_text) == len(text) - 1
         start, end, _ = new_spans[0]
         assert new_text[start:end].strip() == new_text[start:end] and end - start >= 15
+
+
+def test_mixed_variant_capitalizes_only_entity_starts():
+    text = "selam ben Irmak Bucak'ta yaşıyorum Mehmet Akif Ersoy Üniversitesi'nde okuyorum"
+    spans = [(10, 15, "PERSON"), (16, 21, "LOCATION"), (35, 65, "ORG")]
+    new_text, new_spans = apply_variant(text, spans, "mixed")
+    assert new_text == "selam ben Irmak Bucakta yaşıyorum Mehmet akif ersoy üniversitesinde okuyorum"
+    assert [new_text[a:b] for a, b, _ in new_spans] == ["Irmak", "Bucak", "Mehmet akif ersoy üniversitesi"]
+
+
+def test_v5_filler_skips_development_set_entities():
+    rng = random.Random(5)
+    pool = [AddressParts("Lale Sokak", "5", "06000", "Örnek Mahallesi")]
+    gold = {
+        "PERSON": {key("nur yıldırım")},
+        "ORG": {key("hitit üniversitesinde")},
+        "LOCATION": {key("kemerde")},
+    }
+    filler = FillerV5(rng, pool, gold)
+    assert "Nur" not in filler.amb_first and "Can" in filler.amb_first
+    assert "Kemer" not in filler.amb_places and "Bahçe" in filler.amb_places
+    assert "Hitit Üniversitesi" not in filler.universities
+    for _ in range(200):
+        assert not key(filler.institution()).startswith(key("hitit üniversitesi"))
+    text, spans = render_template("selam ben {AMBF} {AMBL:DA} {LIVE} {EDU:DA} {STUDY}", filler)
+    assert sorted(label for _, _, label in spans) == ["LOCATION", "ORG", "PERSON"]

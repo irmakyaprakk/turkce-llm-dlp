@@ -299,3 +299,17 @@ Doğrulama: 37.055 satırlık UCI ürün yorumlarında yeni kurallar 0 eşleşme
 **Yazar notu.** batch3 proje içinde yazıldı ve Irmak Yaprak tarafından gözden geçirildi (17 Ekim 2026). augmented-v5 şablonları da aynı kaynaktan çıktığı için batch3 sonuçları **iyimser** sayılmalı ve batch1-2'den ayrı raporlanmalıdır (bağımsız yazar cümleleri ayrı bir partide tutulmalı). Sızıntı denetimi: augmented-v4 train/dev ile birebir çakışan cümle yok.
 
 **Hata türleri (batch3, orijinal yazım).** Sözcükler arası yanlış birleştirme ("ırmak bucakta" → YER, "kuzey fethiyede" → YER, "oğuz cumhuriyet mah. …" → ADRES); kurumun kişi + kurum diye bölünmesi ("mehmet akif" + "ersoy üniversitesinde", "süleyman" + "demirel üniversitesini"); "devlet hastanesine" gibi genel adların kurum sanılması; sözcük anlamı da olan adların kaçması ya da yanlış türe girmesi ("kale" → ORG, "kalede" → KİŞİ). Kurum alt birimi farkları ("ege üniversitesi tıp fakültesi"): gözden geçirmede kural korundu, küçük harfli alt birim kuruma dahil edilmez; modelin alt birimi katması bu partide hata sayılır.
+
+## augmented-v5 verisi (Sorun 2, adım 2 — 17 Ekim 2026; eğitim bekliyor)
+
+augmented-v4 komutuna `--v5-informal 8000 600` eklendi (`training/ner/context_templates_v5.py`). v1–v4 satırları ayrı RNG ile aynen üretilir; yeni satırlar 8.000 günlük dil cümlesi ve 536 zor negatiftir. Toplam: train 76.233, dev 5.545 (test v4 ile aynı). SHA-256 train `7e550fe0…`, dev `031f3c7e…`; Colab paketi `turkce-dlp-colab-bundle-v7`, defter `training/ner/colab_v5.ipynb`.
+
+Hedeflenen hata türleri (batch3 ölçümünden; cümleler kopyalanmadı):
+- "selam ben <ad> <yer>de yaşıyorum <kurum>de okuyorum" tanıtımları ve yapay zekâya istekler
+- kişi adı taşıyan kurumlar ("necmettin erbakan üniversitesi", "<kişi> anadolu lisesi")
+- sözcük anlamı da olan 27 ad ("nur", "bulut") ve 55 ilçe ("kemer", "maden"); aynı sözcüklerin sıradan kullanımı zor negatif
+- yazım: küçük harf + bitişik ek %35, karışık harf (yalnız varlıkların ilk harfi büyük; yeni `mixed` varyantı) %15, BÜYÜK %12
+
+Sızıntı önlemleri: geliştirme partilerinde (realistic_batch1-3) geçen adlar (ilk sözcük), ilçeler ve kurumlar (önek eşleşmesi) v5 yuvalarında kullanılmaz; 2 üniversite bu yüzden elendi. Altın set dışlama listesine `sealed2/*.txt` etiketli dosyaları da eklendi (önceden yalnız `sealed/` dışlanıyordu; `kaynak/` okunmaz, içerik yalnız dışlama için kullanılır, ayar yapılmadı). Cümle düzeyinde çakışma: 0.
+
+**Dikkat:** batch3 ve v5 şablonları aynı kaynaktan çıktı; batch3'teki iyileşme iyimser okunmalı. Gerileme kontrolü için batch1-2 (realistic-v2) sonucu da ayrıca raporlanacak.

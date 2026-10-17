@@ -139,10 +139,20 @@ def drop_apostrophes(text: str, spans: Sequence[Span]) -> tuple[str, list[Span]]
 
 
 def apply_variant(text: str, spans: Sequence[Span], variant: str) -> tuple[str, list[Span]]:
-    """Yazım varyantı uygular. variant: orig, lower, upper, ascii, lower_ascii, noapos, lower_noapos, chat."""
+    """Yazım varyantı uygular. variant: orig, lower, upper, ascii, lower_ascii, noapos, lower_noapos, chat, mixed.
+
+    mixed: ek bitişik, her şey küçük harf, yalnız varlıkların ilk harfi büyük ("selam ben Irmak Bucakta yaşıyorum
+    Mehmet akif ersoy üniversitesinde okuyorum"): telefonda otomatik büyük harf ve yarım düzeltme.
+    """
     spans = list(spans)
     if variant == "orig":
         return text, spans
+    if variant == "mixed":
+        text, spans = drop_apostrophes(tr_lower(text), spans)
+        chars = list(text)
+        for start, _end, _label in spans:
+            chars[start] = tr_upper(chars[start])
+        return "".join(chars), spans
     parts = {
         "lower": ("lower",),
         "upper": ("upper",),
