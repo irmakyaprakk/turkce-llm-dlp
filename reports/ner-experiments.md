@@ -346,3 +346,20 @@ Servis günlüğünde "NER tanıyıcısı başarısız" kaydı 6 kez geçiyordu:
 - Gerçek ChatGPT doğrulamasında bulunan yan hata da giderildi: site, eklentinin tekrar gönderiminden hemen sonra ikinci bir `submit` tetikliyor ve aynı metin yeniden kontrol ediliyordu (yanlış "Kişisel veri bulunmadı" bandı; model kapalıyken önizleme döngüsü). Az önce onaylanan metin 5 saniye içinde yeniden kontrol edilmez.
 
 Model ve eşikler değişmedi; ölçüm sonuçları etkilenmez.
+
+**Ek (aynı gün):** Bilgisayar bir süre boşta kaldıktan sonraki ilk mesaj ~2 saniye sürüyordu (boşta kalan süreç macOS'ta yavaşlıyor); 2 saniyelik sınır aşılınca model gereksiz yere yeniden başlatılıyor ve kullanıcı uyarı görüyordu. Çıkarım sınırı 5 saniyeye çıkarıldı (eklentinin 8 saniyelik bekleme süresinin altında) ve boşta kalan model dakikada bir kısa bir deneme metniyle sıcak tutuluyor; deneme yanıt vermezse süreç kullanıcı mesajından önce yenilenir. Ölçüm: 150 saniye boşta kaldıktan sonra ilk istek 1,97 sn → 0,10 sn. macOS kurulum betiğine `ProcessType: Interactive` eklendi (servisin arka planda kısıtlanmaması için).
+
+## augmented-v5 ara sonuçları (17 Ekim 2026; karar sealed3'te)
+
+Colab (`colab_v5.ipynb`), 3 seed ortalaması ± std; v4 değerleri yerel seed 42 (`reports/casing/v4-realistic-v3-tum.json`). Hibrit F1:
+
+| Set (kaynak) | Yazım | v4 | v5 |
+|---|---|---|---|
+| realistic-v3 tümü, 227 cümle (yapay zekâ destekli) | orijinal | 0,931 | **0,967 ± 0,004** |
+| | küçük | 0,903 | **0,950 ± 0,004** |
+| | BÜYÜK | 0,753 | **0,819 ± 0,020** |
+| batch3, 68 cümle — *iyimser (aynı kaynak)* | orijinal | 0,851 | 0,938 ± 0,004 |
+| | küçük | 0,838 | 0,942 ± 0,004 |
+| | BÜYÜK | 0,681 | 0,874 ± 0,011 |
+
+Yorum: üç yazım biçiminde de iyileşme var, en büyüğü BÜYÜK harfte. batch3 kazancı aynı kaynaktan geldiği için kanıt sayılmaz. Karar kuralının istediği **realistic-v2 (batch1-2) gerileme kontrolü henüz yapılmadı** (Colab ölçümü batch1-2'yi ayrıca vermedi); v4 tek seed, v5 üç seed ortalamasıdır. Üretimde hâlâ v4 var; v5 kararı realistic-v2 kontrolü ve sealed3 ölçümünden sonra verilecek.
