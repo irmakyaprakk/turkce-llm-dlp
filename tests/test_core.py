@@ -798,3 +798,83 @@ def test_model_span_drops_apostrophe_suffix_so_same_person_gets_one_placeholder(
 )
 def test_tckn_with_context_is_masked_even_if_checksum_fails(text, expected):
     assert any(d.type == "TCKN" for d in detect(text)) is expected
+
+
+def test_ner_keepalive_warms_idle_worker_and_restarts_if_it_hangs(monkeypatch, tmp_path):
+    import time as _time
+
+    sent = []
+
+    class Connection:
+        def __init__(self, hang):
+            self.hang = hang
+            self.ready_sent = False
+
+        def poll(self, _timeout):
+            return not self.ready_sent or not self.hang
+
+        def recv(self):
+            if not self.ready_sent:
+                self.ready_sent = True
+                return ("ready", None)
+            return ("result", [])
+
+        def send(self, text):
+            sent.append((self.hang, text))
+
+        def close(self):
+            pass
+
+    class Child:
+        def close(self):
+            pass
+
+    class Process:
+        alive = True
+
+        def __init__(self, **_kwargs):
+            pass
+
+        def start(self):
+            pass
+
+        def is_alive(self):
+            return self.alive
+
+        def terminate(self):
+            self.alive = False
+
+        kill = terminate
+
+        def join(self, timeout=None):
+            pass
+
+        def close(self):
+            pass
+
+    class Context:
+        spawned = 0
+
+        def Pipe(self, duplex=True):
+            Context.spawned += 1
+            return Connection(hang=Context.spawned == 1), Child()
+
+        def Process(self, **kwargs):
+            return Process(**kwargs)
+
+    monkeypatch.setattr("turkce_llm_dlp.ner.multiprocessing.get_context", lambda _method: Context())
+    recognizer = ProcessIsolatedHuggingFaceNERRecognizer(
+        str(tmp_path),
+        startup_timeout_seconds=1,
+        inference_timeout_seconds=0.01,
+        restart_delays=(0.05,),
+        keepalive_seconds=0.05,
+    )
+    for _ in range(150):
+        if recognizer.restarts and any(not hang for hang, _ in sent):
+            break
+        _time.sleep(0.02)
+    texts = {text for _, text in sent}
+    assert texts == {ProcessIsolatedHuggingFaceNERRecognizer.KEEPALIVE_TEXT}  # yalnız deneme metni, kullanıcı metni yok
+    assert recognizer.restarts == 1 and recognizer.available  # takılan süreç kullanıcı mesajından önce yenilendi
+    recognizer.close()

@@ -67,7 +67,7 @@ class HuggingFaceNERRecognizer:
         device: int = -1,
         min_score: float = 0.0,
         startup_timeout_seconds: float = 60.0,
-        inference_timeout_seconds: float = 2.0,
+        inference_timeout_seconds: float = 5.0,
     ):
         return ProcessIsolatedHuggingFaceNERRecognizer(
             model_dir,
@@ -246,8 +246,9 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
         device: int = -1,
         min_score: float = 0.0,
         startup_timeout_seconds: float = 60.0,
-        inference_timeout_seconds: float = 2.0,
+        inference_timeout_seconds: float = 5.0,
         restart_delays: tuple[float, ...] = (5.0, 15.0, 60.0, 300.0),
+        keepalive_seconds: float = 60.0,
     ):
         if not Path(model_dir).is_dir():
             raise FileNotFoundError("Yerel NER model klasörü bulunamadı.")
@@ -274,8 +275,12 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
         self._restart_delays = tuple(restart_delays) or (5.0,)
         self._restart_thread: threading.Thread | None = None
         self.restarts = 0
+        self.keepalive_seconds = keepalive_seconds
+        self._last_used = time.monotonic()
         self._start_worker()
         atexit.register(self.close)
+        if keepalive_seconds > 0:
+            threading.Thread(target=self._keepalive_loop, name="ner-keepalive", daemon=True).start()
 
     @property
     def available(self) -> bool:
@@ -286,6 +291,34 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
         self._disabled = True
         self._stop_worker()
         self._schedule_restart()
+
+    # Boşta kalan model süreci (macOS bellek sıkıştırma / arka plan kısıtlaması) ilk mesajda yavaşlıyordu;
+    # kısa bir deneme metniyle sıcak tutulur. Deneme de yanıt vermezse süreç, kullanıcı mesajından önce yenilenir.
+    KEEPALIVE_TEXT = "Ali Ankara'da çalışıyor."
+
+    def _keepalive_loop(self) -> None:
+        while not self._closing:
+            time.sleep(min(1.0, self.keepalive_seconds))
+            if self._closing or self._disabled or time.monotonic() - self._last_used < self.keepalive_seconds:
+                continue
+            if not self._lock.acquire(blocking=False):
+                continue  # gerçek istek işleniyor
+            try:
+                if self._disabled or self._connection is None:
+                    continue
+                self._connection.send(self.KEEPALIVE_TEXT)
+                if not self._connection.poll(max(self.inference_timeout_seconds, 10.0)):
+                    self._fail()
+                    continue
+                status, _payload = self._connection.recv()
+                if status != "result":
+                    self._fail()
+                    continue
+                self._last_used = time.monotonic()
+            except (EOFError, OSError):
+                self._fail()
+            finally:
+                self._lock.release()
 
     def _schedule_restart(self) -> None:
         if self._closing or (self._restart_thread is not None and self._restart_thread.is_alive()):
@@ -383,6 +416,7 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
                 self._fail()
                 raise RuntimeError("NER worker kullanılamıyor.")
             try:
+                self._last_used = time.monotonic()
                 self._connection.send(text)
                 if not self._connection.poll(self.inference_timeout_seconds):
                     self._fail()

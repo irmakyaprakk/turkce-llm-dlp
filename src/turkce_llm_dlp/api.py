@@ -114,7 +114,8 @@ def _configured_detector() -> DetectionPipeline:
     try:
         device = int(os.environ.get("TURKCE_DLP_NER_DEVICE", "-1"))
         startup_timeout = float(os.environ.get("TURKCE_DLP_NER_STARTUP_TIMEOUT_SECONDS", "60"))
-        inference_timeout = float(os.environ.get("TURKCE_DLP_NER_TIMEOUT_SECONDS", "2"))
+        # 5 sn: boşta kalan süreç ilk mesajda ~2 sn sürebiliyor; eklentinin servis bekleme süresi (8 sn) altında kalır
+        inference_timeout = float(os.environ.get("TURKCE_DLP_NER_TIMEOUT_SECONDS", "5"))
         recognizer = HuggingFaceNERRecognizer.from_local_model(
             model_dir,
             device=device,
