@@ -2,6 +2,19 @@
 
 Tam-span (exact match) precision / recall / F1. Altın test seti küçüktür (73 cümle; 17 adres, 27 kurum, 38 kişi, 17 yer varlığı) — sonuçlar yön gösterir, nihai rapor ~400 cümlelik setle yapılacaktır.
 
+## Veri kaynakları (değerlendirme partileri)
+
+| Parti | Kullanım | Kaynak türü |
+|---|---|---|
+| `realistic_batch1`, `realistic_batch2` | Geliştirme seti (realistic-v2) | Yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı |
+| `realistic_batch3` | Geliştirme seti (realistic-v3), günlük dil | Yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı. augmented-v5 şablonlarıyla aynı kaynak → **iyimser** |
+| `sealed/sealed_proje.txt` (eski adı `sealed_asistan.txt`) | Mühürlü test 1 | Yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı |
+| `sealed/sealed_irmak.txt` | Mühürlü test 1 | Bağımsız insan yazar: Irmak Yaprak elle yazdı |
+| `sealed2/sealed2_toplanan.txt` | Mühürlü test 2 | Bağımsız insan yazarlar: arkadaşlar elle yazdı |
+| `sealed3` (toplanacak) | Mühürlü test 3, v5'in tek bağımsız değerlendirmesi | Bağımsız insan yazarlar (talimat: `docs/sealed3-talimat.md`) |
+
+Sonuç tablolarında yapay zekâ destekli ve bağımsız insan yazar partileri ayrı sütunlarda verilir. Geliştirme setlerinin tamamı yapay zekâ destekli olduğundan genelleme iddiası yalnız bağımsız insan yazar setlerine (sealed_irmak, sealed2, sealed3) dayanır.
+
 ## Deney 1 — baseline (`baseline_ctx_seed42`)
 
 Veri: `real-address-context-v1` (WikiNER + OSM adres satırları + 8 sabit kalıpta OSM adresleri). BERTurk cased, 3 epoch, seed 42, fp16, Colab T4.
@@ -148,7 +161,7 @@ Hata listesi büyük harfle başlayan sıradan sözcükleri varlık sanan bir mo
 3 seed (42, 43, 44), üretim boru hattıyla birebir (DetectionPipeline), ortalama ± std. Mühürlü test bir kez çalıştırıldı;
 sonucuna göre hiçbir ayar yapılmadı.
 
-| | Geliştirme (159 cümle) | Mühürlü — tümü (71) | Mühürlü — proje içi yazar (56) | Mühürlü — bağımsız yazar (15) |
+| | Geliştirme (159 cümle; yapay zekâ destekli) | Mühürlü — tümü (71) | Mühürlü — yapay zekâ destekli (56) | Mühürlü — bağımsız insan yazar (15) |
 |---|---|---|---|---|
 | Genel F1 | 0,971 ± 0,004 | **0,857 ± 0,008** | 0,908 ± 0,019 | 0,622 ± 0,040 |
 | Precision | 0,971 ± 0,004 | 0,859 ± 0,003 | 0,912 ± 0,013 | 0,618 ± 0,060 |
@@ -158,7 +171,7 @@ sonucuna göre hiçbir ayar yapılmadı.
 | Yer F1 / kapsama | 0,983 / 1,000 | 0,833 / 0,788 | 0,977 / 1,000 | 0,451 / 0,417 |
 | Adres F1 / kapsama | 1,000 / 1,000 | 0,811 / 0,950 | 0,794 / 0,947 | 1,000 / 1,000 |
 
-Varlık sayıları: proje içi yazar 80 (30 kişi, 25 kurum, 14 yer, 11 adres); bağımsız yazar 17 (7 kişi, 3 kurum, 6 yer, 1 adres).
+Varlık sayıları: yapay zekâ destekli 80 (30 kişi, 25 kurum, 14 yer, 11 adres); bağımsız insan yazar 17 (7 kişi, 3 kurum, 6 yer, 1 adres).
 
 **Yorum.**
 
@@ -201,7 +214,7 @@ Sonuçlar birebir aynı. Sebep: geliştirme setinde model yer adlarının tamam�
 ## v4 — gündelik dil turu ve mühürlü test 2 (sealed2)
 
 **Veri:** augmented-v4 = v3 + 12.000 gündelik dil cümlesi (`docs/data-augmentation.md`), sealed2 toplanmadan önce donduruldu (commit `fbb5f18`).
-**Test:** sealed2 — proje sahibinin çevresinden toplanan 100 mesaj (69 kişi, 62 adres, 35 kurum, 28 yer). Bir kez çalıştırıldı;
+**Test:** sealed2 — proje sahibinin çevresinden toplanan 100 mesaj (kaynak: bağımsız insan yazarlar, arkadaşlar elle yazdı) (69 kişi, 62 adres, 35 kurum, 28 yer). Bir kez çalıştırıldı;
 sonuca göre ayar yapılmadı. Önceden belirlenen karar kuralı: "v4 sealed2'de v3'ten iyiyse üretimde v4".
 
 | sealed2 (3 seed) | v3 hibrit | **v4 hibrit** | v3 yalnız model | v4 yalnız model |
@@ -280,7 +293,7 @@ Doğrulama: 37.055 satırlık UCI ürün yorumlarında yeni kurallar 0 eşleşme
 
 Üretim boru hattı (v4 seed 42 + kurallar + sözlük) `training/ner/evaluate_casing.py` ile aynı cümlelerin orijinal, küçük ve BÜYÜK harfli kopyalarında ölçüldü. Mühürlü setler kullanılmadı. Sonuçlar: `reports/casing/`.
 
-**realistic-v2 (batch1 + batch2, dev + test, 159 cümle)**
+**realistic-v2 (batch1 + batch2, dev + test, 159 cümle; yapay zekâ destekli)**
 
 | Yazım | Hibrit F1 | Yalnız model | Yalnız kural |
 |---|---|---|---|
@@ -288,7 +301,7 @@ Doğrulama: 37.055 satırlık UCI ürün yorumlarında yeni kurallar 0 eşleşme
 | küçük | 0,935 | 0,931 | 0,469 |
 | BÜYÜK | 0,790 | 0,767 | 0,517 |
 
-**realistic_batch3 (68 cümle, dev + test)**
+**realistic_batch3 (68 cümle, dev + test; yapay zekâ destekli, iyimser — aynı kaynak)**
 
 | Yazım | Hibrit F1 | Adres | Yer | Kurum | Kişi |
 |---|---|---|---|---|---|
@@ -296,7 +309,7 @@ Doğrulama: 37.055 satırlık UCI ürün yorumlarında yeni kurallar 0 eşleşme
 | küçük | 0,838 | 0,667 | 0,870 | 0,743 | 0,896 |
 | BÜYÜK | 0,681 | 0,667 | 0,697 | 0,667 | 0,680 |
 
-**Yazar notu.** batch3 proje içinde yazıldı ve Irmak Yaprak tarafından gözden geçirildi (17 Ekim 2026). augmented-v5 şablonları da aynı kaynaktan çıktığı için batch3 sonuçları **iyimser** sayılmalı ve batch1-2'den ayrı raporlanmalıdır (bağımsız yazar cümleleri ayrı bir partide tutulmalı). Sızıntı denetimi: augmented-v4 train/dev ile birebir çakışan cümle yok.
+**Kaynak.** batch3 yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı (17 Ekim 2026). augmented-v5 şablonları da aynı kaynaktan çıktığı ve batch3 kullanıcının gerçek örneğini birebir içerdiği için batch3 sonuçları **iyimser (aynı kaynak)** sayılır ve kanıt olarak kullanılmaz; asıl karşılaştırma batch1-2 (realistic-v2) ve bağımsız insan yazarlardan toplanacak sealed3 ile yapılır. Sızıntı denetimi: augmented-v4 train/dev ile birebir çakışan cümle yok.
 
 **Hata türleri (batch3, orijinal yazım).** Sözcükler arası yanlış birleştirme ("ırmak bucakta" → YER, "kuzey fethiyede" → YER, "oğuz cumhuriyet mah. …" → ADRES); kurumun kişi + kurum diye bölünmesi ("mehmet akif" + "ersoy üniversitesinde", "süleyman" + "demirel üniversitesini"); "devlet hastanesine" gibi genel adların kurum sanılması; sözcük anlamı da olan adların kaçması ya da yanlış türe girmesi ("kale" → ORG, "kalede" → KİŞİ). Kurum alt birimi farkları ("ege üniversitesi tıp fakültesi"): gözden geçirmede kural korundu, küçük harfli alt birim kuruma dahil edilmez; modelin alt birimi katması bu partide hata sayılır.
 
@@ -312,8 +325,8 @@ Hedeflenen hata türleri (batch3 ölçümünden; cümleler kopyalanmadı):
 
 Sızıntı önlemleri: geliştirme partilerinde (realistic_batch1-3) geçen adlar (ilk sözcük), ilçeler ve kurumlar (önek eşleşmesi) v5 yuvalarında kullanılmaz; 2 üniversite bu yüzden elendi. Altın set dışlama listesine `sealed2/*.txt` etiketli dosyaları da eklendi (önceden yalnız `sealed/` dışlanıyordu; `kaynak/` okunmaz, içerik yalnız dışlama için kullanılır, ayar yapılmadı). Cümle düzeyinde çakışma: 0.
 
-**Dikkat:** batch3 ve v5 şablonları aynı kaynaktan çıktı; batch3'teki iyileşme iyimser okunmalı. Gerileme kontrolü için batch1-2 (realistic-v2) sonucu da ayrıca raporlanacak.
+**Dikkat:** batch3 ve v5 şablonları aynı kaynaktan (yapay zekâ destekli) çıktı; batch3'teki iyileşme **iyimser (aynı kaynak)** etiketiyle raporlanır, kanıt sayılmaz. Asıl karşılaştırma ve gerileme kontrolü batch1-2 (realistic-v2) üzerinden; v5'in tek bağımsız değerlendirmesi sealed3 ile bir kez yapılır.
 
 ## Not: mühürlü dosya adı (17 Ekim 2026)
 
-Mühürlü final testteki proje içi yazar grubu dosyası `data/ner/manual/sealed/sealed_proje.txt` adını aldı. Yalnız dosya adı ve ilk yorum satırı değişti; cümleler ve etiketler aynıdır (değişiklik içerik okunmadan yapıldı). Bu nedenle dosyanın kaynak SHA-256 değeri ve sonuç dosyalarındaki parti adı, bu tarihten önceki raporlardakinden farklıdır; önceki sayılar geçerliliğini korur.
+Mühürlü final testteki yapay zekâ destekli parti `sealed_asistan.txt` adından `data/ner/manual/sealed/sealed_proje.txt` adına geçti. Kaynağı değişmedi: **yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı.** Dosyanın ilk yorum satırında "proje içi" yazar; mühürlü dosyanın içeriği okunmadığı ve değiştirilmediği için bu satır olduğu gibi bırakıldı, doğru kaynak bu rapordadır. Yalnız dosya adı ve ilk yorum satırı değişti; cümleler ve etiketler aynıdır. Bu nedenle dosyanın kaynak SHA-256 değeri ve sonuç dosyalarındaki parti adı, bu tarihten önceki raporlardakinden farklıdır; önceki sayılar geçerliliğini korur.

@@ -1,5 +1,5 @@
 # Altın test seti — 3. parti. Kurallar: training/ner/ANNOTATION_RULES.md
-# Yazar grubu: proje içi (augmented-v5 şablonlarıyla aynı kaynak), 17 Ekim 2026. Gözden geçirildi: Irmak Yaprak.
+# Kaynak: yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı. 17 Ekim 2026. augmented-v5 şablonlarıyla aynı kaynak.
 # Not: eğitim verisi (augmented-v5) şablonlarını da aynı yazar yazacağı için bu parti iyimser sonuç verebilir;
 # raporda ayrı (by_batch) gösterilir. Bağımsız yazar cümleleri ayrı bir partide tutulmalı.
 # Odak: yapay zekâya yazılan günlük dil — "selam ben …" tanıtımları, tamamı küçük harf, karışık/BÜYÜK harf,

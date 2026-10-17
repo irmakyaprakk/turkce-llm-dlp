@@ -1,4 +1,5 @@
 # Altın test seti — 1. parti (aday). Kurallar: training/ner/ANNOTATION_RULES.md
+# Kaynak: yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı.
 # Biçim: kategori<TAB>cümle. Etiketler: PER, ORG, LOC, ADRES. Satır içi \n = yeni satır.
 # Tüm kişi adları, adresler ve numaralar uydurmadır. Gözden geçirirken etiketi düzelt, emin olmadığın satırın başına "# ?" koy.
 

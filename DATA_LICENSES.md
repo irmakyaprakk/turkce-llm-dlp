@@ -10,6 +10,20 @@ Bu depodaki **kaynak kod** MIT lisanslıdır (bkz. `LICENSE`). Aşağıdaki veri
 | [turkey-neighbourhoods 4.0.3](https://github.com/muratgozel/turkey-neighbourhoods) (PTT posta kodu listesi) | Yer adı sözlüğü: il / ilçe / mahalle / köy adları (`data/gazetteer/`, depoda) | MIT | © 2020 Murat Gözel; veri kaynağı PTT (https://postakodu.ptt.gov.tr) |
 | [BERTurk (`dbmdz/bert-base-turkish-cased`)](https://huggingface.co/dbmdz/bert-base-turkish-cased) | Başlangıç modeli | MIT | Schweter, S. (2020). BERTurk. Zenodo. |
 
+## Değerlendirme verileri (depoda)
+
+`data/ner/manual/` altındaki değerlendirme cümleleri projede üretildi; ad, kurum ve adresler uydurmadır. Kaynak türleri:
+
+| Dosya | Kaynak |
+|---|---|
+| `realistic_batch1.txt`, `realistic_batch2.txt`, `realistic_batch3.txt` | Yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı |
+| `sealed/sealed_proje.txt` | Yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı |
+| `sealed/sealed_irmak.txt` | Bağımsız insan yazar: Irmak Yaprak elle yazdı |
+| `sealed2/sealed2_toplanan.txt` | Bağımsız insan yazarlar: arkadaşlar elle yazdı (ham metinler `sealed2/kaynak/` depoya alınmaz) |
+| `sealed3/` (toplanacak) | Bağımsız insan yazarlar (ham metinler `sealed3/kaynak/` depoya alınmaz) |
+
+Eğitim verisindeki bağlam cümleleri `training/ner/context_templates*.py` şablonlarından üretilir; augmented-v5 şablonları (`context_templates_v5.py`) yapay zekâ destekli yazıldı ve `realistic_batch3` ile aynı kaynaktır.
+
 ## Yer adı sözlüğü
 
 `src/turkce_llm_dlp/data/tr_gazetteer.json.gz`, `training/ner/build_gazetteer.py` ile PTT kaynaklı il/ilçe/mahalle

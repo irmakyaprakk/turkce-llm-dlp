@@ -1,5 +1,5 @@
 # Altın test seti — 2. parti (aday). Kurallar: training/ner/ANNOTATION_RULES.md
-# Yazar grubu: proje içi (1. partiyle aynı kaynak, farklı üslup hedefli). Bağımsız yazar cümleleri ayrı dosyada tutulur.
+# Kaynak: yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı. 1. partiyle aynı kaynak, farklı üslup hedefli. Bağımsız yazar cümleleri ayrı dosyada tutulur.
 # Odak: uzun/dağınık metin, yazım hatası, İngilizce-Türkçe karışık iş dili, adres tarifi, çoklu adres, kurum adları.
 # Ad/soyad ve kurumlar eğitim sözlüklerinde bulunmayan adlardan seçildi. Tüm değerler uydurmadır.
 
