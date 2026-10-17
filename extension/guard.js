@@ -1,166 +1,185 @@
 // Ağ kilidi (fail-closed): sayfanın kendi dünyasında (MAIN), site betiklerinden önce çalışır.
 // ChatGPT/Claude'a giden POST gövdesindeki kullanıcı metni, içerik betiğinin kısa süre önce onayladığı
-// metinle eşleşmiyorsa istek gönderilmez. Böylece eklentinin olay yakalamasını atlayan bir gönderim yolu
-// (geç yüklenen betik, başka bir arayüz, bilinmeyen kısayol) ham metni dışarı çıkaramaz.
+// metinle eşleşmiyorsa istek gönderilmez. Bilinen gönderim adresinde gövde biçimi tanınmazsa da istek durur.
+// Böylece olay yakalamayı atlayan bir gönderim yolu (geç yüklenen betik, başka bir arayüz, bilinmeyen kısayol,
+// biçim değişikliği, iç çerçevenin temiz fetch'i) ham metni dışarı çıkaramaz.
+// Kapsam dışı: Web Worker / SharedWorker istekleri (yalnız arka plandaki webRequest tespit ağı görür).
 (() => {
   "use strict";
-  if (window.__turkceDlpGuard) return;
-  window.__turkceDlpGuard = true;
-
+  const {normalize, endpointKind, fromString} = window.TurkceDlpExtract;
   const APPROVAL_MS = 30_000; // site isteği yeniden deneyebilir: onay tek kullanımlık değil
-  const approvals = new Map(); // normalize metin → son geçerlilik anı
-  let enabled = true; // içerik betiği aksini söyleyene kadar kilitli
 
-  const normalize = (text) => String(text).replace(/\s+/g, " ").trim();
-
-  document.addEventListener("turkce-dlp-approve", (event) => {
-    try {
-      const text = normalize(JSON.parse(event.detail));
-      if (text) approvals.set(text, Date.now() + APPROVAL_MS);
-    } catch (_error) { /* bozuk olay yok sayılır */ }
-  });
-  document.addEventListener("turkce-dlp-config", (event) => {
-    try {
-      enabled = JSON.parse(event.detail).enabled !== false;
-    } catch (_error) { /* bozuk olay yok sayılır */ }
-  });
-
-  // İçerik betiği bu betikten önce yüklendiyse ayarı yeniden göndersin
-  document.dispatchEvent(new CustomEvent("turkce-dlp-config-request"));
+  // Durum üst pencerede tutulur; aynı kökenli iç çerçeveler aynı nesneyi kullanır.
+  let state = null;
+  try {
+    if (window !== window.top) state = window.top.__turkceDlpGuardState || null;
+  } catch (_error) {
+    state = null; // farklı köken: kendi durumu, varsayılan kilitli
+  }
+  if (!state) {
+    state = window.__turkceDlpGuardState || {approvals: new Map(), enabled: true};
+    if (window === window.top && !window.__turkceDlpGuardState) {
+      document.addEventListener("turkce-dlp-approve", (event) => {
+        try {
+          const text = normalize(JSON.parse(event.detail));
+          if (text) state.approvals.set(text, Date.now() + APPROVAL_MS);
+        } catch (_error) { /* bozuk olay yok sayılır */ }
+      });
+      document.addEventListener("turkce-dlp-config", (event) => {
+        try {
+          state.enabled = JSON.parse(event.detail).enabled !== false;
+        } catch (_error) { /* bozuk olay yok sayılır */ }
+      });
+      // İçerik betiği bu betikten önce yüklendiyse ayarı yeniden göndersin
+      document.dispatchEvent(new CustomEvent("turkce-dlp-config-request"));
+    }
+  }
+  if (!window.__turkceDlpGuardState) {
+    Object.defineProperty(window, "__turkceDlpGuardState", {value: state, configurable: false});
+  }
 
   function isApproved(text) {
     const now = Date.now();
-    for (const [key, until] of approvals) if (until < now) approvals.delete(key);
-    return approvals.has(normalize(text));
+    for (const [key, until] of state.approvals) if (until < now) state.approvals.delete(key);
+    return state.approvals.has(normalize(text));
   }
 
-  // Gövdeden kullanıcı metni: form/JSON "prompt" alanı (ChatGPT oturumsuz, Claude) ya da
-  // son kullanıcı mesajının content.parts alanı (ChatGPT oturumlu). Bulunamazsa null.
-  // Claude uzun yapıştırmayı eke çevirir (attachments[].extracted_content): ek metni de onaylı olmalı.
-  function fromJson(data) {
-    if (!data || typeof data !== "object") return null;
-    const attached = Array.isArray(data.attachments)
-      ? data.attachments.map((item) => item?.extracted_content).filter((text) => typeof text === "string" && text.trim())
-      : [];
-    const main = promptOf(data);
-    return attached.length ? [main ?? "", ...attached] : main;
-  }
-
-  function promptOf(data) {
-    if (typeof data.prompt === "string") return data.prompt;
-    if (Array.isArray(data.messages)) {
-      const user = data.messages.filter((m) => m?.author?.role === "user" || m?.role === "user").at(-1);
-      const parts = user?.content?.parts;
-      if (Array.isArray(parts)) {
-        const texts = parts.filter((part) => typeof part === "string");
-        if (texts.length) return texts.join("\n");
-      }
-      if (typeof user?.content === "string") return user.content;
+  function notify(reason) {
+    const event = () => new CustomEvent("turkce-dlp-blocked", {detail: JSON.stringify({reason})});
+    try {
+      window.top.document.dispatchEvent(event());
+    } catch (_error) {
+      document.dispatchEvent(event());
     }
+  }
+
+  // null: geçebilir; aksi hâlde engelleme nedeni ("unapproved" | "format")
+  function verdict(url, analysis) {
+    if (!state.enabled) return null;
+    if (endpointKind(url) === "send" && !analysis.recognized) return "format";
+    if (analysis.texts.some((text) => normalize(text) && !isApproved(text))) return "unapproved";
     return null;
   }
 
-  function fromString(body) {
-    const trimmed = body.trimStart();
-    if (trimmed.startsWith("{")) {
-      try {
-        return fromJson(JSON.parse(trimmed));
-      } catch (_error) {
-        return null;
+  function blockError(reason) {
+    notify(reason);
+    return new TypeError("Türkçe LLM DLP: gönderim durduruldu");
+  }
+
+  const isWrite = (method) => !/^(GET|HEAD|OPTIONS)$/i.test(method || "GET");
+  // Pencereler arası tür denetimi: başka çerçevede oluşturulan nesnede instanceof yanlış sonuç verir
+  const tag = (value) => Object.prototype.toString.call(value).slice(8, -1);
+  const isBlob = (value) => tag(value) === "Blob" || tag(value) === "File";
+  const UNREADABLE = {recognized: false, texts: []};
+
+  // Bir pencereye (üst ya da aynı kökenli iç çerçeve) kilidi kurar; o pencerenin kurucuları kullanılır.
+  function install(win) {
+    if (!win || win.__turkceDlpGuardInstalled) return;
+    try {
+      Object.defineProperty(win, "__turkceDlpGuardInstalled", {value: true});
+    } catch (_error) {
+      return;
+    }
+
+    // Eşzamanlı okunabilen gövde: {recognized, texts}; okunamıyorsa undefined
+    function analyzeSync(body) {
+      if (body == null) return UNREADABLE;
+      if (typeof body === "string") return fromString(body);
+      if (tag(body) === "URLSearchParams") return fromString(body.toString());
+      if (tag(body) === "FormData") {
+        const value = body.get("prompt");
+        return typeof value === "string" ? {recognized: true, texts: [value]} : UNREADABLE;
       }
+      if (tag(body) === "ArrayBuffer" || ArrayBuffer.isView(body)) {
+        return fromString(new TextDecoder().decode(body));
+      }
+      return undefined; // Blob/ReadableStream
     }
-    if (/(^|&)prompt=/.test(body)) return new URLSearchParams(body).get("prompt");
-    return null;
-  }
 
-  function extractSync(body) {
-    if (body == null) return null;
-    if (typeof body === "string") return fromString(body);
-    if (body instanceof URLSearchParams) return body.get("prompt");
-    if (body instanceof FormData) {
-      const value = body.get("prompt");
-      return typeof value === "string" ? value : null;
-    }
-    if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) {
-      return fromString(new TextDecoder().decode(body));
-    }
-    return undefined; // Blob/ReadableStream: eşzamanlı okunamaz
-  }
-
-  function isWrite(method) {
-    return !/^(GET|HEAD|OPTIONS)$/i.test(method || "GET");
-  }
-
-  function blocked(url) {
-    document.dispatchEvent(new CustomEvent("turkce-dlp-blocked", {detail: JSON.stringify({url: String(url).slice(0, 200)})}));
-    return new TypeError("Türkçe LLM DLP: Kontrol edilmemiş gönderim engellendi");
-  }
-
-  // true: gönderilebilir (birden çok metin varsa — mesaj + ek — hepsi onaylı olmalı)
-  function allowText(text) {
-    if (Array.isArray(text)) return text.every(allowText);
-    return !enabled || text == null || !normalize(text) || isApproved(text);
-  }
-
-  const originalFetch = window.fetch;
-  window.fetch = function fetch(input, init) {
-    const request = input instanceof Request ? input : null;
-    const method = init?.method || request?.method || "GET";
-    if (!enabled || !isWrite(method)) return originalFetch.apply(this, arguments);
-    const url = request ? request.url : input;
-    const body = init && "body" in init ? init.body : null;
-    let text = extractSync(body);
-    if (text === null && request && !(init && "body" in init)) text = undefined; // gövde Request içinde
-    if (text !== undefined) {
-      if (!allowText(text)) return Promise.reject(blocked(url));
-      return originalFetch.apply(this, arguments);
-    }
-    // Eşzamansız gövde: okunur, karar sonra verilir (gövdenin kopyası okunur, asıl istek bozulmaz)
-    const args = arguments;
-    const self = this;
-    return (async () => {
-      let raw = "";
-      try {
-        if (body instanceof Blob) raw = await body.text();
-        else if (body == null && request) raw = await request.clone().text();
-        else if (body instanceof ReadableStream) {
-          const [a, b] = body.tee();
-          raw = await new Response(a).text();
-          args[1] = {...init, body: b, duplex: "half"};
+    const originalFetch = win.fetch;
+    win.fetch = function fetch(input, init) {
+      const request = tag(input) === "Request" ? input : null;
+      const method = init?.method || request?.method || "GET";
+      if (!state.enabled || !isWrite(method)) return originalFetch.apply(this, arguments);
+      const url = request ? request.url : input;
+      const hasInitBody = Boolean(init && "body" in init && init.body != null);
+      const body = hasInitBody ? init.body : null;
+      const analysis = hasInitBody ? analyzeSync(body) : request ? undefined : UNREADABLE;
+      if (analysis !== undefined) {
+        const reason = verdict(url, analysis);
+        return reason ? Promise.reject(blockError(reason)) : originalFetch.apply(this, arguments);
+      }
+      // Eşzamansız gövde: kopyası okunur, karar sonra verilir (asıl istek bozulmaz)
+      const args = [...arguments];
+      const self = this;
+      return (async () => {
+        let raw = "";
+        try {
+          if (isBlob(body)) raw = await body.text();
+          else if (!hasInitBody && request) raw = await request.clone().text();
+          else if (tag(body) === "ReadableStream") {
+            const [a, b] = body.tee();
+            raw = await new win.Response(a).text();
+            args[1] = {...init, body: b, duplex: "half"};
+          }
+        } catch (_error) {
+          raw = "";
         }
-      } catch (_error) {
-        raw = "";
-      }
-      const found = fromString(raw);
-      if (!allowText(found)) throw blocked(url);
-      return originalFetch.apply(self, args);
-    })();
-  };
-
-  const xhrOpen = XMLHttpRequest.prototype.open;
-  const xhrSend = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.open = function open(method, url) {
-    this.__turkceDlp = {method, url};
-    return xhrOpen.apply(this, arguments);
-  };
-  XMLHttpRequest.prototype.send = function send(body) {
-    const info = this.__turkceDlp || {};
-    if (enabled && isWrite(info.method)) {
-      const text = extractSync(body);
-      if (text !== undefined && !allowText(text)) throw blocked(info.url);
-    }
-    return xhrSend.apply(this, arguments);
-  };
-
-  if (navigator.sendBeacon) {
-    const beacon = navigator.sendBeacon.bind(navigator);
-    navigator.sendBeacon = function sendBeacon(url, data) {
-      const text = extractSync(data);
-      if (text !== undefined && !allowText(text)) {
-        blocked(url);
-        return false;
-      }
-      return beacon(url, data);
+        const reason = verdict(url, raw ? fromString(raw) : UNREADABLE);
+        if (reason) throw blockError(reason);
+        return originalFetch.apply(self, args);
+      })();
     };
+
+    const proto = win.XMLHttpRequest.prototype;
+    const xhrOpen = proto.open;
+    const xhrSend = proto.send;
+    proto.open = function open(method, url) {
+      this.__turkceDlp = {method, url};
+      return xhrOpen.apply(this, arguments);
+    };
+    proto.send = function send(body) {
+      const info = this.__turkceDlp || {};
+      if (state.enabled && isWrite(info.method)) {
+        // Blob gövdesi eşzamanlı okunamaz: gönderim adresindeyse fail-closed
+        const reason = verdict(info.url, analyzeSync(body) ?? UNREADABLE);
+        if (reason) throw blockError(reason);
+      }
+      return xhrSend.apply(this, arguments);
+    };
+
+    if (win.navigator.sendBeacon) {
+      const beacon = win.navigator.sendBeacon.bind(win.navigator);
+      win.navigator.sendBeacon = function sendBeacon(url, data) {
+        const reason = verdict(url, analyzeSync(data) ?? UNREADABLE);
+        if (reason) {
+          blockError(reason);
+          return false;
+        }
+        return beacon(url, data);
+      };
+    }
+
+    // Aynı kökenli iç çerçeve (about:blank dahil) erişildiği anda kilitlenir: site çerçevenin temiz fetch'ine
+    // contentWindow/contentDocument üzerinden ulaşır. Farklı kökenli çerçeveye manifest girdisi (all_frames) kurulur.
+    for (const Frame of [win.HTMLIFrameElement, win.HTMLFrameElement].filter(Boolean)) {
+      for (const prop of ["contentWindow", "contentDocument"]) {
+        const descriptor = Object.getOwnPropertyDescriptor(Frame.prototype, prop);
+        if (!descriptor?.get) continue;
+        Object.defineProperty(Frame.prototype, prop, {
+          ...descriptor,
+          get() {
+            const value = descriptor.get.call(this);
+            try {
+              const child = prop === "contentWindow" ? value : value?.defaultView;
+              if (child && child.document) install(child);
+            } catch (_error) { /* farklı köken */ }
+            return value;
+          }
+        });
+      }
+    }
   }
+
+  install(window);
 })();

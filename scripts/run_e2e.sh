@@ -15,6 +15,7 @@ PYTHONPATH=src TURKCE_DLP_AUDIT_DB="$AUDIT_DB" TURKCE_DLP_POLICY=tests/e2e/polic
 API=$!
 "$PY" tests/e2e/serve_mock.py &
 MOCK=$!
-trap 'kill $API $MOCK 2>/dev/null || true' EXIT
+# Çıkarken süreçlerin kapanması beklenir: art arda çalıştırmada port hâlâ dolu görünmesin
+trap 'kill $API $MOCK 2>/dev/null; wait $API $MOCK 2>/dev/null || true' EXIT
 for _ in $(seq 1 600); do curl -sf --noproxy "*" http://127.0.0.1:8000/health > /dev/null && break; sleep 0.2; done
 node tests/e2e/extension.e2e.mjs

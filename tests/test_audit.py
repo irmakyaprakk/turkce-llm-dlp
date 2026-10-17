@@ -138,3 +138,10 @@ def test_panel_served_with_strict_csp():
     script = client.get("/panel/panel.js")
     assert script.status_code == 200 and script.headers["content-type"].startswith("text/javascript")
     assert "innerHTML" not in script.text
+
+
+def test_leak_detected_outcome_is_counted(audited):
+    client = TestClient(app)
+    body = {"source": "extension", "site": "chatgpt.com", "outcome": "leak_detected"}
+    assert client.post("/v1/audit/event", json=body).status_code == 204
+    assert client.get("/v1/audit/summary?days=1").json()["outcomes"] == {"leak_detected": 1}

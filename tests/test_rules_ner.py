@@ -246,3 +246,12 @@ def test_pipeline_never_returns_overlapping_spans(text):
     detections = pipeline.detect(text)
     for left, right in zip(detections, detections[1:], strict=False):
         assert left.end <= right.start, detections
+
+
+def test_model_span_over_rule_detection_never_overlaps_output():
+    # Model span'ı TCKN'nin üstüne uzanırsa kural önceliklidir; çıktıda çakışma olmaz, TCKN korunur
+    text = "Ziraat Bankası 10000000146 numaralı müşteri"
+    detections = DetectionPipeline([_FixedORG("Ziraat Bankası 10000000146")]).detect(text)
+    assert ("TCKN", "10000000146") in [(d.type, d.value) for d in detections]
+    for left, right in zip(detections, detections[1:], strict=False):
+        assert left.end <= right.start, detections

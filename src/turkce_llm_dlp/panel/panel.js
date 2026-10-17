@@ -7,7 +7,13 @@ const TYPE_LABELS = {
   PERSON: "Kişi", ORG: "Kurum", LOCATION: "Yer", ADDRESS: "Adres", TCKN: "T.C. kimlik no",
   IBAN: "IBAN", CARD: "Kredi kartı", EMAIL: "E-posta", PHONE: "Telefon", SECRET: "Gizli bilgi"
 };
-const OUTCOME_LABELS = {masked: "Maskelendi", clean: "Temiz", blocked: "Engellendi", cancelled: "Vazgeçildi"};
+const OUTCOME_LABELS = {
+  masked: "Maskelendi",
+  clean: "Temiz",
+  blocked: "Engellendi",
+  cancelled: "Vazgeçildi",
+  leak_detected: "Kontrolsüz gönderim"
+};
 const ACTION_LABELS = {mask: "Maskele", block: "Engelle", allow: "İzin ver"};
 const SVG_NS = "http://www.w3.org/2000/svg";
 const fmt = new Intl.NumberFormat("tr-TR");
@@ -198,9 +204,9 @@ function render(data) {
   table($("fp-table"), ["Tür", "Bulunan", "Kaldırılan", "Oran"], fpRows, [1, 2, 3]);
 
   const total = data.messages || 0;
-  const outcomeRows = ["masked", "clean", "cancelled", "blocked"]
+  const outcomeRows = ["masked", "clean", "cancelled", "blocked", "leak_detected"]
     .filter((key) => data.outcomes?.[key])
-    .map((key) => [tag(OUTCOME_LABELS[key], key === "blocked"), fmt.format(data.outcomes[key]),
+    .map((key) => [tag(OUTCOME_LABELS[key], key === "blocked" || key === "leak_detected"), fmt.format(data.outcomes[key]),
       `%${Math.round((data.outcomes[key] / total) * 100)}`]);
   table($("outcome-table"), ["Karar", "Mesaj", "Pay"], outcomeRows, [1, 2]);
 
@@ -212,7 +218,7 @@ function render(data) {
   const recentRows = (data.recent || []).map((row) => [
     timeFmt.format(new Date(row.ts * 1000)),
     row.site,
-    tag(OUTCOME_LABELS[row.outcome] || row.outcome, row.outcome === "blocked"),
+    tag(OUTCOME_LABELS[row.outcome] || row.outcome, row.outcome === "blocked" || row.outcome === "leak_detected"),
     summarizeCounts(row.masked),
     sum(row.unchecked) ? fmt.format(sum(row.unchecked)) : "—"
   ]);

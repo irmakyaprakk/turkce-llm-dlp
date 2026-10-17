@@ -22,7 +22,12 @@ manifest.host_permissions.push(`${MOCK}/*`);
 writeFileSync(path.join(extDir, "manifest.json"), JSON.stringify(manifest));
 const background = readFileSync(path.join(extDir, "background.js"), "utf8")
   .replace('"www.claude.ai"]', '"www.claude.ai", "127.0.0.1"]');
-writeFileSync(path.join(extDir, "background.js"), background);
+writeFileSync(path.join(extDir, "background.js"), background.replace(
+  '"https://claude.ai/*"];', `"https://claude.ai/*", "${MOCK}/*"];`));
+// Sahte sayfa ChatGPT'nin gönderim adreslerini (/backend-api/conversation, /unauth-mweb/conversation/updates) kullanır
+const extract = readFileSync(path.join(extDir, "extract.js"), "utf8");
+writeFileSync(path.join(extDir, "extract.js"), extract.replace(
+  'if (host === "chatgpt.com" &&', 'if ((host === "chatgpt.com" || host === "127.0.0.1") &&'));
 
 const context = await chromium.launchPersistentContext(path.join(workDir, "profile"), {
   headless: true,
@@ -217,6 +222,28 @@ await step("denetim günlüğüne yalnız sayılar gider", async () => {
   for (const value of [TCKN, EMAIL, "GizliParola123", "Gül Sk."]) assert.ok(!raw.includes(value), `denetimde değer: ${value}`);
 });
 
+await step("tespit ağı: Web Worker'dan giden onaysız gönderim engellenemez ama yakalanır", async () => {
+  await page.goto(`${MOCK}/c/worker0001abc`);
+  await page.waitForTimeout(1500);
+  const before = (await received()).length;
+  // Sunucuya gerçekten ulaşacağı için kişisel veri yerine işaret metni kullanılır
+  await page.evaluate((marker) => {
+    // blob: adresli worker'da göreli adres çözülmez: tam adres verilir
+    const code = `fetch("${location.origin}/backend-api/conversation", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({messages: [{author: {role: "user"}, content: {parts: ["${marker}"]}}]})})`;
+    new Worker(URL.createObjectURL(new Blob([code], {type: "text/javascript"})));
+  }, "WORKER-ONAYSIZ-METIN");
+  await page.locator("#turkce-dlp-error").getByText(/tespit edildi ve engellenemedi/).waitFor({timeout: 10_000});
+  assert.equal((await received()).length, before + 1, "worker isteği (MV3'te engellenemez) sunucuya ulaşmalıydı");
+  const worker = context.serviceWorkers()[0];
+  const tabId = await worker.evaluate(async () => (await chrome.tabs.query({url: "http://127.0.0.1:8765/*"}))[0].id);
+  assert.equal(await worker.evaluate((id) => chrome.action.getBadgeText({tabId: id}), tabId), "!");
+  await page.waitForTimeout(500);
+  const summary = await (await fetch("http://127.0.0.1:8000/v1/audit/summary?days=1")).json();
+  assert.equal(summary.outcomes.leak_detected, 1, JSON.stringify(summary.outcomes));
+  assert.ok(!JSON.stringify(summary).includes("WORKER-ONAYSIZ"), "denetim günlüğünde metin");
+});
+
 await step("'yapay zekânın gördüğünü göster' açıkken yer tutucular geri çevrilmez", async () => {
   await page.goto(`${MOCK}/c/sohbet0001abc`); // [EPOSTA_1] bu sohbetin eşlemesinde
   await page.waitForTimeout(1500);
@@ -276,6 +303,63 @@ await step("ağ kilidi: koruma kapalıyken kilit de açılır", async () => {
   assert.equal((await received()).length, before + 1);
   await worker.evaluate(() => chrome.storage.local.set({enabled: true}));
   await page.waitForTimeout(300);
+});
+
+await step("ağ kilidi: gönderim adresine tanınmayan gövde biçimi durdurulur (fail-closed)", async () => {
+  await page.goto(`${MOCK}/c/bicim0001abc`);
+  await page.waitForTimeout(1500);
+  const before = (await received()).length;
+  const result = await page.evaluate(async () => {
+    try {
+      await fetch("/backend-api/conversation", {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({x: "ham metin 10000000146"})});
+      return "geçti";
+    } catch (_error) {
+      return "engellendi";
+    }
+  });
+  assert.equal(result, "engellendi");
+  await page.locator("#turkce-dlp-error").getByText(/Gönderim biçimi tanınmadı/).waitFor();
+  assert.equal((await received()).length, before, "tanınmayan gövde sunucuya ulaştı");
+  // metin taşımayan uç nokta (ör. conversation/prepare) etkilenmez
+  const prepare = await page.evaluate(async () => (await fetch("/unauth-mweb/conversation/prepare",
+    {method: "POST", body: new URLSearchParams({conversationState: "{}"})})).ok);
+  assert.ok(prepare);
+});
+
+await step("ağ kilidi: about:blank iç çerçevenin fetch'i de kilitli", async () => {
+  const before = (await received()).length;
+  // Gerçek sitede bulunan açık: çerçeveye kilidi manifest kurar (match_about_blank) ve göreli adres
+  // about:blank'e göre çözülürdü; gövde de üst pencerede oluşturulmuş bir URLSearchParams olabilir.
+  const crossRealm = await page.evaluate(async (tc) => {
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    await new Promise((resolve) => setTimeout(resolve, 300)); // manifest girdisi çerçeveye yüklensin
+    try {
+      await frame.contentWindow.fetch("/unauth-mweb/conversation/updates", {method: "POST", body: new URLSearchParams({prompt: `çerçeve ${tc}`})});
+      return "geçti";
+    } catch (_error) {
+      return "engellendi";
+    } finally {
+      frame.remove();
+    }
+  }, TCKN);
+  assert.equal(crossRealm, "engellendi");
+  const result = await page.evaluate(async (tc) => {
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    try {
+      await frame.contentWindow.fetch("/unauth-mweb/conversation/updates", {method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"}, body: new URLSearchParams({prompt: `çerçeve ${tc}`}).toString()});
+      return "geçti";
+    } catch (_error) {
+      return "engellendi";
+    } finally {
+      frame.remove();
+    }
+  }, TCKN);
+  assert.equal(result, "engellendi");
+  assert.equal((await received()).length, before, "iç çerçeve isteği sunucuya ulaştı");
 });
 
 await step("servis kapalıysa gönderim durur ve neden açıkça söylenir", async () => {

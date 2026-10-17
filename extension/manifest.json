@@ -4,7 +4,8 @@
   "version": "1.1.0",
   "description": "ChatGPT ve Claude'a giden mesajlardaki kişisel verileri yerel DLP servisiyle bulur, yer tutucuyla değiştirir ve yanıtta geri yerleştirir.",
   "permissions": [
-    "storage"
+    "storage",
+    "webRequest"
   ],
   "background": {
     "service_worker": "background.js"
@@ -24,10 +25,14 @@
         "https://claude.ai/*"
       ],
       "js": [
+        "extract.js",
         "guard.js"
       ],
       "run_at": "document_start",
-      "world": "MAIN"
+      "world": "MAIN",
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true
     },
     {
       "matches": [

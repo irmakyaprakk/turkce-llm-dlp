@@ -1,10 +1,16 @@
 "use strict";
 
+importScripts("extract.js");
+
 // Test sürümünde (scripts/e2e) bu küme yerel sahte sohbet sayfasıyla genişletilir.
 const ALLOWED_SITES = new Set(["chatgpt.com", "www.chatgpt.com", "claude.ai", "www.claude.ai"]);
 const API_URL = "http://127.0.0.1:8000/v1/detect";
 const AUDIT_URL = API_URL.replace("/v1/detect", "/v1/audit/event");
-const AUDIT_OUTCOMES = new Set(["masked", "clean", "blocked", "cancelled"]);
+const AUDIT_OUTCOMES = new Set(["masked", "clean", "blocked", "cancelled", "leak_detected"]);
+// Tespit ağı: sayfa kilidini atlayan (ör. Web Worker'dan giden) gönderimleri görmek için izlenen siteler
+const WATCHED_URLS = ["https://chatgpt.com/*", "https://claude.ai/*"];
+const APPROVAL_MS = 30_000;
+const APPROVAL_KEY = "network-approvals";
 
 // Yalnız {"PERSON": 2} biçimli sayılar geçer; değer ya da metin taşıyabilecek her şey atılır.
 function typeCounts(value) {
@@ -41,9 +47,43 @@ async function readVault(storeKey) {
   return stored.state;
 }
 
+async function postAudit(event) {
+  try {
+    await fetch(AUDIT_URL, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(event),
+      cache: "no-store",
+      credentials: "omit",
+      signal: AbortSignal.timeout(3000)
+    });
+  } catch (_error) {
+    // servis kapalıysa kayıt düşer; mesaj akışı bundan etkilenmez
+  }
+}
+
+// Onaylanan (maskelenmiş ya da temiz) metinler: yalnız oturum belleğinde, ~30 sn. Ham metin buraya gelmez.
+async function readApprovals() {
+  const stored = (await chrome.storage.session.get(APPROVAL_KEY))[APPROVAL_KEY] || {};
+  const now = Date.now();
+  return Object.fromEntries(Object.entries(stored).filter(([, until]) => until > now));
+}
+
+async function addApproval(text) {
+  const approvals = await readApprovals();
+  approvals[TurkceDlpExtract.normalize(text)] = Date.now() + APPROVAL_MS;
+  await chrome.storage.session.set({[APPROVAL_KEY]: approvals});
+}
+
 async function handle(message, sender) {
   const host = senderHost(sender);
   if (!ALLOWED_SITES.has(host)) return {error: true};
+
+  if (message.type === "turkce-dlp-approve") {
+    if (typeof message.text !== "string" || message.text.length > 20_000) return {error: true};
+    await addApproval(message.text);
+    return {ok: true};
+  }
 
   if (message.type === "turkce-dlp-detect") {
     if (typeof message.text !== "string" || message.text.length > 20_000) return {error: true};
@@ -77,18 +117,7 @@ async function handle(message, sender) {
       masked: typeCounts(message.masked),
       unchecked: typeCounts(message.unchecked)
     };
-    try {
-      await fetch(AUDIT_URL, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(event),
-        cache: "no-store",
-        credentials: "omit",
-        signal: AbortSignal.timeout(3000)
-      });
-    } catch (_error) {
-      // servis kapalıysa kayıt düşer; mesaj akışı bundan etkilenmez
-    }
+    await postAudit(event);
     return {ok: true};
   }
 
@@ -142,4 +171,70 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   handle(message, sender).then(sendResponse, () => sendResponse({error: true}));
   return true;
+});
+
+// ---------------------------------------------------------------------------
+// Tespit ağı (webRequest): MV3'te istek ENGELLENEMEZ, yalnız gözlenir. Sayfa kilidini (guard.js) atlayan bir
+// gönderim (Web Worker / SharedWorker, kilit kurulmadan açılmış sekme) görülürse kullanıcı uyarılır ve denetim
+// günlüğüne yalnız "leak_detected" sonucu yazılır (metin ya da değer yazılmaz).
+// ---------------------------------------------------------------------------
+const recentLeaks = new Map(); // sekme → son uyarı anı (site isteği yeniden denediğinde tek uyarı)
+
+function bodyAnalysis(requestBody) {
+  if (requestBody?.formData) return TurkceDlpExtract.fromFormFields(requestBody.formData);
+  if (Array.isArray(requestBody?.raw) && requestBody.raw.every((part) => part.bytes)) {
+    const decoder = new TextDecoder();
+    const text = requestBody.raw.map((part) => decoder.decode(part.bytes, {stream: true})).join("") + decoder.decode();
+    return TurkceDlpExtract.fromString(text);
+  }
+  return null; // gövde görülemiyor (akış ya da dosya): doğrulanamaz
+}
+
+async function isUnapproved(analysis) {
+  const approvals = await readApprovals();
+  return analysis.texts.some((text) => {
+    const key = TurkceDlpExtract.normalize(text);
+    return key && !approvals[key];
+  });
+}
+
+async function inspectRequest(details) {
+  if (details.method !== "POST" || details.tabId < 0) return;
+  const kind = TurkceDlpExtract.endpointKind(details.url);
+  if (!kind) return;
+  const {enabled} = await chrome.storage.local.get({enabled: true});
+  if (enabled === false) return;
+  const analysis = bodyAnalysis(details.requestBody);
+  if (!analysis) return;
+  if (kind === "retry" && !analysis.recognized) return;
+  if (analysis.recognized && !(await isUnapproved(analysis))) return;
+  // Onay mesajı istekten biraz sonra gelebilir: kısa bekleyip yeniden bak
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  if (analysis.recognized && !(await isUnapproved(analysis))) return;
+  const last = recentLeaks.get(details.tabId) || 0;
+  if (Date.now() - last < 10_000) return;
+  recentLeaks.set(details.tabId, Date.now());
+  chrome.action.setBadgeBackgroundColor({tabId: details.tabId, color: "#9b1c1c"}).catch(() => {});
+  chrome.action.setBadgeText({tabId: details.tabId, text: "!"}).catch(() => {});
+  chrome.tabs.sendMessage(details.tabId, {type: "turkce-dlp-leak"}).catch(() => {});
+  let site = "";
+  try {
+    site = new URL(details.url).hostname.replace(/^www\./, "");
+  } catch (_error) {
+    return;
+  }
+  await postAudit({source: "extension", site, outcome: "leak_detected", detected: {}, masked: {}, unchecked: {}});
+}
+
+chrome.webRequest.onBeforeRequest.addListener(
+  (details) => {
+    inspectRequest(details).catch(() => {});
+  },
+  {urls: WATCHED_URLS},
+  ["requestBody"]
+);
+
+// Sekme yeni sayfaya geçince uyarı rozeti temizlenir
+chrome.tabs.onUpdated.addListener((tabId, info) => {
+  if (info.status === "loading") chrome.action.setBadgeText({tabId, text: ""}).catch(() => {});
 });

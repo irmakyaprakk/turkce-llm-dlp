@@ -21,7 +21,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .policy import ENTITY_TYPES
 
-Outcome = Literal["masked", "clean", "blocked", "cancelled"]
+# leak_detected: arka plandaki tespit ağı onaysız bir gönderim gördü (engellenemedi; yalnız bildirim)
+Outcome = Literal["masked", "clean", "blocked", "cancelled", "leak_detected"]
 MAX_COUNT = 10_000
 
 

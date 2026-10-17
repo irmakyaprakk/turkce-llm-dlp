@@ -45,14 +45,22 @@
     document.dispatchEvent(new CustomEvent("turkce-dlp-config", {detail: JSON.stringify({enabled})}));
   }
 
+  // Onay hem sayfadaki kilide hem arka plandaki tespit ağına (webRequest) bildirilir.
   function approveForNetwork(text) {
     document.dispatchEvent(new CustomEvent("turkce-dlp-approve", {detail: JSON.stringify(text)}));
+    chrome.runtime.sendMessage({type: "turkce-dlp-approve", text}).catch(() => {});
   }
 
   document.addEventListener("turkce-dlp-config-request", () => settingsReady.then(configureGuard));
 
-  document.addEventListener("turkce-dlp-blocked", () => {
-    showError("Türkçe LLM DLP: Kontrol edilmemiş gönderim engellendi; mesaj yapay zekâya gitmedi.");
+  document.addEventListener("turkce-dlp-blocked", (event) => {
+    let reason = "";
+    try {
+      reason = JSON.parse(event.detail).reason;
+    } catch (_error) { /* eski biçim */ }
+    showError(reason === "format"
+      ? "Türkçe LLM DLP: Gönderim biçimi tanınmadı; mesaj gönderilmedi."
+      : "Türkçe LLM DLP: Kontrol edilmemiş gönderim engellendi; mesaj yapay zekâya gitmedi.");
   });
 
   // İçerik betiği document_start anında çalışır: body henüz yokken çizilemeyenler sonra çizilir.
@@ -113,6 +121,10 @@
         sendResponse({ok: true});
       }, () => sendResponse({error: true}));
       return true;
+    }
+    if (message?.type === "turkce-dlp-leak") {
+      showError("Türkçe LLM DLP: Kontrol edilmemiş bir gönderim tespit edildi ve engellenemedi. Sohbeti kontrol edip sayfayı yenileyin.");
+      return false;
     }
     if (message?.type === "turkce-dlp-status") {
       sendResponse({key: currentKey, size: vault.size});
