@@ -683,6 +683,36 @@ class DetectionPipeline:
         merged = merge_org_compounds(text, ner_items)
         if self.address_union:
             merged = merge_facility_into_address(text, merged)
-        # Birleştirme deterministik kural tespitleriyle (TCKN/IBAN...) çakışamaz.
-        merged = [d for d in merged if not any(d.start < r.end and d.end > r.start for r in rules)]
-        return sorted([*rules, *merged], key=lambda d: d.start)
+        return sorted([*rules, *_resolve_merged(text, merged, ner_items, rules)], key=lambda d: d.start)
+
+
+def _overlaps(a: Detection, b: Detection) -> bool:
+    return a.start < b.end and a.end > b.start
+
+
+def _resolve_merged(
+    text: str, merged: list[Detection], originals: list[Detection], rules: list[Detection]
+) -> list[Detection]:
+    """Birleştirme sonrası span'ları maskelenebilir kılar: kurallarla ve birbirleriyle çakışmasınlar.
+
+    Kural tespitinin (TCKN/IBAN...) üstünden uzayan birleşik span atılır ama içindeki özgün parçalar korunur
+    (tümden atmak, model bulduğu hâlde kurum adını maskesiz bırakırdı). Birbiriyle çakışan span'lar tek span'da
+    birleşir; tür uzun olanınkidir. Eksik maskeleme fazladan maskelemeden pahalıdır.
+    """
+    safe: list[Detection] = []
+    for item in merged:
+        if any(_overlaps(item, rule) for rule in rules):
+            safe.extend(o for o in originals if item.start <= o.start and o.end <= item.end)
+        else:
+            safe.append(item)
+    resolved: list[Detection] = []
+    for item in sorted(safe, key=lambda d: (d.start, -(d.end - d.start))):
+        previous = resolved[-1] if resolved else None
+        if previous is None or not _overlaps(previous, item):
+            resolved.append(item)
+            continue
+        if item.end <= previous.end:
+            continue  # tamamen içeride
+        kind = previous.type if previous.end - previous.start >= item.end - item.start else item.type
+        resolved[-1] = Detection(kind, previous.start, item.end, text[previous.start : item.end])
+    return resolved

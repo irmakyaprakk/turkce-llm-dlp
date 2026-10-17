@@ -1,5 +1,7 @@
 import pytest
 
+from turkce_llm_dlp.gazetteer import FacilityRecognizer, LocationGazetteer
+from turkce_llm_dlp.ner import DetectionPipeline, EntitySpan
 from turkce_llm_dlp.rules_ner import RuleEntityRecognizer
 
 R = RuleEntityRecognizer()
@@ -212,3 +214,35 @@ def test_person_cues(text, expected):
 def test_lowercase_orgs(text, expected):
     found = [text[s.start : s.end] for s in RuleEntityRecognizer().recognize(text) if s.type == "ORG"]
     assert found == expected
+
+
+class _FixedORG:
+    def __init__(self, value):
+        self.value = value
+
+    def recognize(self, text):
+        start = text.index(self.value)
+        return [EntitySpan("ORG", start, start + len(self.value))]
+
+
+def test_org_merge_over_rule_detection_keeps_model_org():
+    # Alt birim birleşimi TCKN'nin üstünden uzanırsa kurum tümden düşmemeli (maskesiz kalırdı)
+    text = "Ziraat Bankası 10000000146 Şubesi ile görüştüm"
+    found = [(d.type, d.value) for d in DetectionPipeline([_FixedORG("Ziraat Bankası")]).detect(text)]
+    assert found == [("ORG", "Ziraat Bankası"), ("TCKN", "10000000146")]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "akif üniversitesi 12 Bankası Cad. Apartmanı TR330006100519786457841326 ben . İstanbul benim",
+        "12 Ad ırmak Merkez ; Ankara'da ırmak fakültesi Bankası \n Apartmanı",
+        "İstanbul ırmak fakültesi İsim 0532 Üniversitesi Mah. sokak",
+    ],
+)
+def test_pipeline_never_returns_overlapping_spans(text):
+    # Eklenti çakışan span'ı reddeder ("Detection spans overlap"): mesaj hiç gönderilemezdi
+    pipeline = DetectionPipeline([RuleEntityRecognizer(), LocationGazetteer(), FacilityRecognizer()])
+    detections = pipeline.detect(text)
+    for left, right in zip(detections, detections[1:], strict=False):
+        assert left.end <= right.start, detections

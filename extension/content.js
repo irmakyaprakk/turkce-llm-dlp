@@ -392,7 +392,11 @@
           return; // kullanıcı vazgeçti; mesaj alanı olduğu gibi kalır
         }
       }
-      if (!selected.length) showError("Türkçe LLM DLP: Kişisel veri bulunmadı, mesaj olduğu gibi gönderildi.", "info");
+      if (!selected.length) {
+        showError(candidates.length
+          ? "Türkçe LLM DLP: İşaretli bilgi kalmadı, mesaj olduğu gibi gönderildi."
+          : "Türkçe LLM DLP: Kişisel veri bulunmadı, mesaj olduğu gibi gönderildi.", "info");
+      }
       if (selected.length) {
         const {masked} = vault.mask(text, selected);
         await saveVault();

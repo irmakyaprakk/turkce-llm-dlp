@@ -301,8 +301,6 @@ class RuleEntityRecognizer:
             elif key == "adim":
                 # "adım" aynı zamanda "bir adım ileride"dir: "benim adım" ya da ardından bilinen bir ad gerekir
                 evidence = "any" if prev_key == "benim" else "name"
-            elif key == "isim" and next_key == "" and index + 1 < len(tokens):
-                evidence = None
             elif key == "isim" and index + 1 < len(tokens) and tokens[index + 1][0] == ":":
                 evidence = "any"  # form alanı "İsim: …"
             if evidence:
@@ -366,7 +364,6 @@ class RuleEntityRecognizer:
         if not strong:
             # "ben X" / "adım X": ilk sözcük bilinen bir ad olmalı ("Ben Samsung Galaxy", "BEN MEMNUN" değil);
             # sözcük anlamı da taşıyan adlar ("ırmak", "deniz") ancak tanıtım cümlesi orada bitiyorsa kabul edilir.
-            ends_here = words[-1] + 1 >= len(tokens) or tokens[words[-1] + 1][0] in ",.!?;:"
             if first_key not in TURKISH_FIRST_NAMES or first.isupper() and len(first) > 1:
                 return None
             # Zayıf bağlamda soyadı yalnızca büyük harfli ya da bilinen ad ise eklenir ("ben doğan grubunu" → "doğan")
@@ -400,11 +397,6 @@ class RuleEntityRecognizer:
                     n = len(suffix)
                     if n == 1 and suffix[0] == "as" and not tokens[index][0].isupper():
                         continue  # "AŞ" yalnız büyük harfle: İngilizce "as" ile karışmasın
-                    if tuple(keys[index : index + n]) == suffix and (
-                        index + n == len(tokens) or keys[index + n] != "."
-                    ):
-                        end_index = index + n - 1
-                        break
                     if tuple(keys[index : index + n]) == suffix:
                         end_index = index + n - 1
                         break
