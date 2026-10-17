@@ -20,6 +20,14 @@ Ham değerler dış LLM'e gitmez; yalnızca bilgisayardaki yerel servise gider.
 
 Servis kapalıysa, yanıt geçersizse ya da mesaj alanı doğrulanamazsa eklenti gönderimi durdurup uyarı verir (fail-closed).
 
+**Ağ kilidi (`guard.js`):** Sayfanın kendi dünyasında (`world: "MAIN"`), site betiklerinden önce (`document_start`) çalışır;
+`fetch`, `XMLHttpRequest` ve `sendBeacon`'ı sarar. ChatGPT/Claude'a giden POST gövdesindeki kullanıcı metni (form ya da JSON
+`prompt` alanı, son kullanıcı mesajının `content.parts` alanı) önizlemeden geçip onaylanan metinle eşleşmiyorsa istek
+gönderilmez ve "Kontrol edilmemiş gönderim engellendi" uyarısı çıkar. Onay ~30 saniye geçerlidir (site isteği yeniden
+deneyebilir). Böylece olay yakalamayı atlayan bir gönderim yolu ham metni dışarı çıkaramaz. Koruma popup'tan kapatılınca
+kilit de açılır. Not: kilit, eklenti yüklendikten ya da yenilendikten **sonra** açılan sekmelerde çalışır; önceden açık
+sekmeler yenilenmelidir.
+
 ## Testler
 
 - Birim: `node --test extension/core.test.cjs` (yer tutucu, ek uyumu, sohbet kasası).

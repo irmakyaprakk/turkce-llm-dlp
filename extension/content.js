@@ -17,13 +17,17 @@
       enabled = settings.enabled !== false;
       preview = settings.preview !== false;
       showMasked = settings.showMasked === true;
+      configureGuard();
       renderMaskedBadge();
       resolve();
     });
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    if (changes.enabled) enabled = changes.enabled.newValue !== false;
+    if (changes.enabled) {
+      enabled = changes.enabled.newValue !== false;
+      configureGuard();
+    }
     if (changes.preview) preview = changes.preview.newValue !== false;
     if (changes.showMasked) {
       showMasked = changes.showMasked.newValue === true;
@@ -35,6 +39,24 @@
       }
     }
   });
+
+  // Ağ kilidi (guard.js, sayfa dünyasında): koruma kapalıysa kilit de açılır; onaylanan metin ~30 sn geçer.
+  function configureGuard() {
+    document.dispatchEvent(new CustomEvent("turkce-dlp-config", {detail: JSON.stringify({enabled})}));
+  }
+
+  function approveForNetwork(text) {
+    document.dispatchEvent(new CustomEvent("turkce-dlp-approve", {detail: JSON.stringify(text)}));
+  }
+
+  document.addEventListener("turkce-dlp-config-request", () => settingsReady.then(configureGuard));
+
+  document.addEventListener("turkce-dlp-blocked", () => {
+    showError("Türkçe LLM DLP: Kontrol edilmemiş gönderim engellendi; mesaj yapay zekâya gitmedi.");
+  });
+
+  // İçerik betiği document_start anında çalışır: body henüz yokken çizilemeyenler sonra çizilir.
+  document.addEventListener("DOMContentLoaded", () => renderMaskedBadge());
 
   function renderMaskedBadge() {
     const existing = document.getElementById("turkce-dlp-masked-badge");
@@ -342,11 +364,12 @@
   }
 
   async function intercept(event, composer, replay) {
-    if (!enabled || replayingSubmit || pendingSubmit || !composer) return;
+    if (!enabled || replayingSubmit || !composer) return;
     const text = readComposer(composer);
     if (!text || !text.trim()) return;
     event.preventDefault();
     event.stopImmediatePropagation();
+    if (pendingSubmit) return; // kontrol sürüyor: ikinci gönderim yolu (tık, submit) da durdurulur
     pendingSubmit = true;
     try {
       await vaultReady;
@@ -380,6 +403,7 @@
           throw new Error("Composer update could not be verified");
         }
       }
+      approveForNetwork(selected.length ? readComposer(composer) : text);
       replayingSubmit = true;
       replay();
       queueMicrotask(() => { replayingSubmit = false; });
@@ -412,7 +436,7 @@
     return /(send|submit|gönder|mesajı gönder)/.test(marker) && !/(stop|cancel|durdur|iptal)/.test(marker);
   }
 
-  document.addEventListener("click", (event) => {
+  window.addEventListener("click", (event) => {
     const button = event.target instanceof Element ? event.target.closest("button") : null;
     if (!isSendButton(button) || event.composedPath().some((node) => node?.id === "turkce-dlp-preview")) return;
     const composer = findComposer(button.form || button.closest("form"));
@@ -425,8 +449,9 @@
     void intercept(event, composer, () => button.click());
   }, true);
 
-  document.addEventListener("submit", (event) => {
-    if (replayingSubmit || pendingSubmit) return;
+  // Dinleyiciler window üzerinde, yakalama aşamasında: sitenin document/window dinleyicilerinden önce çalışır.
+  window.addEventListener("submit", (event) => {
+    if (replayingSubmit) return;
     const form = event.target;
     const composer = findComposer(form);
     if (!composer) {
@@ -444,7 +469,7 @@
     });
   }, true);
 
-  document.addEventListener("keydown", (event) => {
+  window.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing || !isComposer(event.target)) return;
     if (pendingSubmit) { event.preventDefault(); event.stopImmediatePropagation(); return; }
     const composer = event.target;

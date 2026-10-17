@@ -17,7 +17,7 @@ const workDir = mkdtempSync(path.join(tmpdir(), "dlp-ext-"));
 const extDir = path.join(workDir, "extension");
 cpSync(path.join(here, "../../extension"), extDir, {recursive: true});
 const manifest = JSON.parse(readFileSync(path.join(extDir, "manifest.json"), "utf8"));
-manifest.content_scripts[0].matches.push(`${MOCK}/*`);
+for (const script of manifest.content_scripts) script.matches.push(`${MOCK}/*`);
 manifest.host_permissions.push(`${MOCK}/*`);
 writeFileSync(path.join(extDir, "manifest.json"), JSON.stringify(manifest));
 const background = readFileSync(path.join(extDir, "background.js"), "utf8")
@@ -203,6 +203,44 @@ await step("'yapay zekânın gördüğünü göster' açıkken yer tutucular ger
   await page.waitForTimeout(500);
   assert.equal(await page.locator("#masked-view").textContent(), `Görünüm: ${EMAIL}`);
   assert.equal(await page.locator("#turkce-dlp-masked-badge").count(), 0);
+});
+
+const received = async () => (await fetch(`${MOCK}/__received`)).json();
+
+await step("ağ kilidi: eklentiyi atlayan gönderim sunucuya ulaşmaz", async () => {
+  await page.goto(`${MOCK}/c/kilit0001abc`);
+  await page.waitForTimeout(1500);
+  const before = (await received()).length;
+  await page.fill("#prompt-textarea", `Hızlıca: TC ${TCKN}`);
+  await page.click("#leak");
+  await page.waitForFunction(() => window.__leakBlocked === true);
+  await page.locator("#turkce-dlp-error").getByText(/Kontrol edilmemiş gönderim engellendi/).waitFor();
+  assert.equal((await received()).length, before, "sızdıran istek sunucuya ulaştı");
+  assert.equal(await page.evaluate(() => window.__sent.length), 0);
+});
+
+await step("ağ kilidi: onaylanan (maskeli) metin geçer, ham metin sunucuda yok", async () => {
+  await page.fill("#prompt-textarea", `Kaydım: TC ${TCKN}`);
+  await page.press("#prompt-textarea", "Enter");
+  await page.locator("#turkce-dlp-preview").getByRole("button", {name: "Maskele ve gönder"}).click();
+  await page.waitForFunction(() => window.__sent.length === 1);
+  const all = await received();
+  assert.ok(all.at(-1).includes("[TCKN_1]"), all.at(-1));
+  for (const body of all) assert.ok(!body.includes(TCKN), `sunucuda ham TC: ${body}`);
+  assert.equal(await page.evaluate(() => window.__networkBlocked || 0), 0, "onaylı gönderim engellenmemeli");
+});
+
+await step("ağ kilidi: koruma kapalıyken kilit de açılır", async () => {
+  const worker = context.serviceWorkers()[0];
+  await worker.evaluate(() => chrome.storage.local.set({enabled: false}));
+  await page.waitForTimeout(300);
+  const before = (await received()).length;
+  await page.fill("#prompt-textarea", "korumasız deneme 0532 000 00 00");
+  await page.click("#leak");
+  await page.waitForFunction(() => window.__sent.length === 2);
+  assert.equal((await received()).length, before + 1);
+  await worker.evaluate(() => chrome.storage.local.set({enabled: true}));
+  await page.waitForTimeout(300);
 });
 
 await step("servis kapalıysa gönderim durur ve neden açıkça söylenir", async () => {

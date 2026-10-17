@@ -15,9 +15,14 @@
       document.getElementById("composer-form").outerHTML =
         '<div id="ce-box" contenteditable="true" role="textbox" aria-label="Mesaj yaz"></div>' +
         '<button id="ce-send" type="button" aria-label="Send message">Gönder</button>';
-      document.getElementById("ce-send").addEventListener("click", () => {
+      document.getElementById("ce-send").addEventListener("click", async () => {
         const box = document.getElementById("ce-box");
         const text = box.innerText;
+        try {
+          await post("/api/completion", JSON.stringify({prompt: text}), "application/json");
+        } catch (_error) {
+          return;
+        }
         window.__sent.push(text);
         box.textContent = "";
         const div = document.createElement("div");
@@ -34,10 +39,35 @@
       div.textContent = text;
       thread.append(div);
     }
-    document.getElementById("composer-form")?.addEventListener("submit", (event) => {
+    // Gerçek siteler gibi metin ağ isteğiyle gider (oturumlu ChatGPT biçiminde JSON).
+    // İstek eklentinin ağ kilidine takılırsa mesaj "gitmemiş" sayılır.
+    function post(path, body, contentType) {
+      return fetch(path, {method: "POST", headers: {"Content-Type": contentType}, body});
+    }
+    function postConversation(text) {
+      return post("/backend-api/conversation", JSON.stringify({
+        action: "next",
+        messages: [{author: {role: "user"}, content: {content_type: "text", parts: [text]}}]
+      }), "application/json");
+    }
+    // Sızdıran yol: eklentinin tanımadığı bir düğme, mesajı oturumsuz ChatGPT biçiminde (form) doğrudan yollar.
+    document.getElementById("composer-form")?.insertAdjacentHTML("beforeend",
+      '<button type="button" id="leak" aria-label="Hızlı yanıt">⚡</button>');
+    document.getElementById("leak")?.addEventListener("click", () => {
+      const text = document.getElementById("prompt-textarea").value;
+      post("/unauth-mweb/conversation/updates", new URLSearchParams({prompt: text}).toString(),
+        "application/x-www-form-urlencoded").then(() => window.__sent.push(text), () => { window.__leakBlocked = true; });
+    });
+    document.getElementById("composer-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const box = document.getElementById("prompt-textarea");
       const text = box.value;
+      try {
+        await postConversation(text);
+      } catch (_error) {
+        window.__networkBlocked = (window.__networkBlocked || 0) + 1;
+        return;
+      }
       window.__sent.push(text);
       box.value = "";
       bubble("user", text);
