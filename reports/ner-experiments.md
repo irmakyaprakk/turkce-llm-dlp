@@ -313,3 +313,7 @@ Hedeflenen hata türleri (batch3 ölçümünden; cümleler kopyalanmadı):
 Sızıntı önlemleri: geliştirme partilerinde (realistic_batch1-3) geçen adlar (ilk sözcük), ilçeler ve kurumlar (önek eşleşmesi) v5 yuvalarında kullanılmaz; 2 üniversite bu yüzden elendi. Altın set dışlama listesine `sealed2/*.txt` etiketli dosyaları da eklendi (önceden yalnız `sealed/` dışlanıyordu; `kaynak/` okunmaz, içerik yalnız dışlama için kullanılır, ayar yapılmadı). Cümle düzeyinde çakışma: 0.
 
 **Dikkat:** batch3 ve v5 şablonları aynı kaynaktan çıktı; batch3'teki iyileşme iyimser okunmalı. Gerileme kontrolü için batch1-2 (realistic-v2) sonucu da ayrıca raporlanacak.
+
+## Not: mühürlü dosya adı (17 Ekim 2026)
+
+Mühürlü final testteki proje içi yazar grubu dosyası `data/ner/manual/sealed/sealed_proje.txt` adını aldı. Yalnız dosya adı ve ilk yorum satırı değişti; cümleler ve etiketler aynıdır (değişiklik içerik okunmadan yapıldı). Bu nedenle dosyanın kaynak SHA-256 değeri ve sonuç dosyalarındaki parti adı, bu tarihten önceki raporlardakinden farklıdır; önceki sayılar geçerliliğini korur.
