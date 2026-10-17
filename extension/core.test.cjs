@@ -84,6 +84,7 @@ test("conversation keys for ChatGPT and Claude", () => {
   assert.equal(conversationKey("https://chatgpt.com/c/68f1a2b3-aaaa"), "chatgpt.com:68f1a2b3-aaaa");
   assert.equal(conversationKey("https://claude.ai/chat/0b9c8d7e-1111"), "claude.ai:0b9c8d7e-1111");
   assert.equal(conversationKey("https://chatgpt.com/"), "chatgpt.com:new");
+  assert.equal(conversationKey("https://chatgpt.com/uc/6ad23d15-8bfc-83ea"), "chatgpt.com:6ad23d15-8bfc-83ea"); // oturumsuz
 });
 
 test("rejects overlapping or out-of-range offsets", () => {

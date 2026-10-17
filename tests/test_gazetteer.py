@@ -20,9 +20,9 @@ def found(gazetteer, text):
     ("text", "expected"),
     [
         ("Hafta sonu Eskişehir'e gidiyoruz.", ["Eskişehir"]),
-        ("paket yarın malatyaya ulaşır", ["malatyaya"]),
-        ("kuzenim kayserideki fabrikada çalışıyor", ["kayserideki"]),
-        ("toplantı nevsehirde olacak", ["nevsehirde"]),  # ASCII yazım
+        ("paket yarın malatyaya ulaşır", ["malatya"]),  # bitişik ek span dışında
+        ("kuzenim kayserideki fabrikada çalışıyor", ["kayseri"]),
+        ("toplantı nevsehirde olacak", ["nevsehir"]),  # ASCII yazım
         ("Rize ili Çayeli ilçesinde", ["Rize", "Çayeli"]),
         ("Gelecek ay Güney Kore'ye uçuyorum.", ["Güney Kore"]),
         ("Ordu'ya taşındılar.", ["Ordu"]),
@@ -101,3 +101,18 @@ def test_facility_recognizer(text, expected):
     from turkce_llm_dlp.gazetteer import FacilityRecognizer
 
     assert [text[s.start : s.end] for s in FacilityRecognizer().recognize(text)] == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("bucakta okuyorum", ["bucak"]),
+        ("fatihte oturuyorum", ["fatih"]),
+        ("bahçede oturuyorum", []),
+        ("kalede oturuyorum", []),
+        ("Bucak güzel bir yer", []),
+    ],
+)
+def test_residence_context_lowercase(text, expected):
+    found = [text[s.start : s.end] for s in LocationGazetteer().recognize(text)]
+    assert found == expected

@@ -31,6 +31,9 @@ Servis yalnızca makinenin loopback arayüzünden erişilebilir; konteyner root 
 - `POST /v1/process`: istemi maskeler, demo yanıtı üretir ve yanıt placeholder'larını aynı istek kapsamındaki değerlerle geri eşler.
 - `POST /v1/gateway`: politika kararını uygular, yalnızca maskelenmiş istemi sağlayıcı arayüzüne verir ve yanıtı geri eşler. Şu anki sağlayıcı yerel demodur; gerçek bir LLM'e bağlanmaz.
 - `POST /v1/gateway/stream`: aynı politika ve maskeleme adımlarını uygulayıp SSE üzerinden yanıt parçalarını döndürür; parça sınırından bölünen placeholder'lar yanıt akarken geri eşlenir.
+- `POST /v1/audit/event`: eklentinin gönderim kararını yalnızca tür başına sayılarla bildirir (metin/değer alanı kabul edilmez).
+- `GET /v1/audit/summary?days=30`: panel özeti; `TURKCE_DLP_ADMIN_TOKEN` tanımlıysa `X-Admin-Token` başlığı ister.
+- `GET /panel`: yönetici paneli (dış kaynak yüklemez, sıkı CSP).
 - İstek gövdesi 100 KB, metin alanı 20.000 karakter ile sınırlıdır. Fazla büyük gövdeler JSON ayrıştırılmadan `413` ile reddedilir.
 
 Örnek:
@@ -88,9 +91,24 @@ python scripts/benchmark_latency.py --iterations 100 --warmup 20
 
 Rapor p50/p95 değerlerini ve Python/işletim sistemi bilgisini içerir. Bu, yalnızca yerel çekirdek ölçümüdür; HTTP, sağlayıcı ağı ve NER modeli gecikmesi dahil değildir. Sonuçlar donanıma/çalışma ortamına özeldir.
 
+## Yönetici paneli ve anonim denetim günlüğü
+
+Servis çalışırken `http://127.0.0.1:8000/panel` adresi son 7/30/90 günün özetini gösterir: kontrol edilen ve engellenen mesajlar, günlük maskelenen veri, türe göre dağılım, kullanıcının "kişisel veri değil" diyerek işaretini kaldırdığı bulgular (yanlış alarm geri bildirimi), kurum politikası ve son kararlar.
+
+Günlük kişisel veri tutmaz. Her kayıt yalnızca dakikaya yuvarlanmış zaman, site adı, karar (maskelendi / temiz / engellendi / vazgeçildi) ve tür başına sayıları içerir. Metin, değer, değerin özeti (hash) ve kullanıcı kimliği yazılmaz: TC kimlik no gibi küçük uzaylı değerlerin özeti bile kaba kuvvetle çözülebileceği için özet de tutulmaz. Olay şeması fazladan alanları reddeder.
+
+| Ortam değişkeni | Varsayılan | Açıklama |
+|---|---|---|
+| `TURKCE_DLP_AUDIT` | `1` | `0` ile günlük tamamen kapanır |
+| `TURKCE_DLP_AUDIT_DB` | `~/.turkce-dlp/audit.sqlite3` | SQLite dosyası (Docker'da yazılabilir bir volume'a bağlayın) |
+| `TURKCE_DLP_AUDIT_RETENTION_DAYS` | `90` | Süresi dolan kayıtlar her yazımda silinir |
+| `TURKCE_DLP_ADMIN_TOKEN` | — | Tanımlıysa panel özeti yönetici anahtarı ister |
+
+Eklenti popup'ındaki **"Yapay zekânın gördüğünü göster"** anahtarı yanıtları geri çevirmeyi kapatır; sohbet, dış servise giden yer tutucularla (`[KİŞİ_1]`) görünür. Maskelemenin gerçekten yapıldığını kullanıcıya göstermek ve sunumda kanıtlamak içindir.
+
 ## Sınırlar ve sonraki aşamalar
 
-Secret kuralları eksiksiz değildir; entropy ve bağlam eşikleri yanlış pozitif/negatif üretebilir. NER arayüzüne henüz eğitilmiş Türkçe model bağlanmadı; timeout davranışı mock worker ile test edilmiştir, gerçek model/GPU üzerinde doğrulanmalıdır. Harf araya sokma, sayıyı yazıyla yazma, kodlanmış veri ve çok mesajlı parçalama kapsam dışıdır. Sonraki aşamalar: eklentiyi gerçek sitelerde doğrulama, NER veri incelemesi/eğitimi, audit ve belge işleme. API şu an loopback'e bağlıdır; dağıtım öncesi auth/TLS ve güvenlik sertleştirmesi gerekir.
+Secret kuralları eksiksiz değildir; entropy ve bağlam eşikleri yanlış pozitif/negatif üretebilir. NER arayüzüne henüz eğitilmiş Türkçe model bağlanmadı; timeout davranışı mock worker ile test edilmiştir, gerçek model/GPU üzerinde doğrulanmalıdır. Harf araya sokma, sayıyı yazıyla yazma, kodlanmış veri ve çok mesajlı parçalama kapsam dışıdır. Sonraki aşamalar: belge/OCR işleme, büyük-küçük harf dayanıklılığı ölçümü ve deneyler. API şu an loopback'e bağlıdır; dağıtım öncesi auth/TLS ve güvenlik sertleştirmesi gerekir.
 
 ## Geliştirme
 

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DLP Yönetici Paneli</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --surface-0: #f4f4f1;
+      --surface-1: #fcfcfb;
+      --text-primary: #0b0b0b;
+      --text-secondary: #52514e;
+      --text-muted: #6f6d68;
+      --grid: #e1e0d9;
+      --baseline: #c3c2b7;
+      --border: rgba(11, 11, 11, 0.10);
+      --series-1: #2a78d6;
+      --accent-soft: #cde2fb;
+      --critical: #b42318;
+      --good: #006300;
+      --radius: 10px;
+      font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --surface-0: #121211;
+        --surface-1: #1a1a19;
+        --text-primary: #f0efec;
+        --text-secondary: #c3c2b7;
+        --text-muted: #9a988f;
+        --grid: #2c2c2a;
+        --baseline: #383835;
+        --border: rgba(255, 255, 255, 0.10);
+        --series-1: #3987e5;
+        --accent-soft: #184f95;
+        --critical: #f97066;
+        --good: #0ca30c;
+      }
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --surface-0: #121211; --surface-1: #1a1a19; --text-primary: #f0efec; --text-secondary: #c3c2b7;
+      --text-muted: #9a988f; --grid: #2c2c2a; --baseline: #383835; --border: rgba(255, 255, 255, 0.10);
+      --series-1: #3987e5; --accent-soft: #184f95; --critical: #f97066; --good: #0ca30c;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--surface-0); color: var(--text-primary); }
+    main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; }
+    header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+    h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+    .sub { margin: 4px 0 0; color: var(--text-secondary); }
+    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface-1); }
+    .seg button { border: 0; background: transparent; color: var(--text-secondary); padding: 6px 12px; font: inherit; cursor: pointer; }
+    .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text-primary); font-weight: 600; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); font-size: 13px; }
+    .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .kpi .label { color: var(--text-secondary); font-size: 13px; }
+    .kpi .value { font-size: 30px; font-weight: 650; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .kpi .note { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+    .grid2 { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; margin-bottom: 12px; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+    h2 { margin: 0 0 2px; font-size: 15px; font-weight: 620; }
+    .card .desc { margin: 0 0 12px; color: var(--text-muted); font-size: 12.5px; }
+    svg { display: block; width: 100%; height: auto; overflow: visible; }
+    svg text { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+    svg .value-label { fill: var(--text-secondary); font-size: 11.5px; }
+    svg .cat-label { fill: var(--text-secondary); font-size: 12px; }
+    .gridline { stroke: var(--grid); stroke-width: 1; }
+    .baseline { stroke: var(--baseline); stroke-width: 1; }
+    .bar { fill: var(--series-1); }
+    .hit { fill: transparent; cursor: default; }
+    .hit:hover + .bar, .bar.active { opacity: 0.8; }
+    .scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--grid); }
+    th { color: var(--text-muted); font-weight: 500; font-size: 12.5px; }
+    td.num, th.num { text-align: right; }
+    tr:last-child td { border-bottom: 0; }
+    .muted { color: var(--text-muted); }
+    .tag { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border); color: var(--text-secondary); }
+    .tag.block { color: var(--critical); border-color: currentColor; }
+    .tooltip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface-1); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; box-shadow: 0 6px 20px rgb(0 0 0 / .18); font-size: 12.5px; display: none; }
+    .tooltip strong { font-size: 14px; }
+    .empty { padding: 32px 8px; text-align: center; color: var(--text-muted); }
+    .privacy { margin-top: 16px; color: var(--text-muted); font-size: 12.5px; }
+    #auth { display: none; margin-bottom: 12px; }
+    #auth input { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); width: min(320px, 100%); }
+    #auth button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--accent-soft); color: var(--text-primary); cursor: pointer; }
+    @media (max-width: 560px) { .kpis { grid-template-columns: 1fr 1fr; } .kpi .value { font-size: 24px; } th, td { padding: 6px 4px; } }
+    @media (max-width: 860px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid2, .grid3 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Türkçe LLM DLP — Yönetici Paneli</h1>
+      <p class="sub">Yapay zekâ servislerine gitmeden önce yakalanan kişisel veriler. Yalnızca sayılar; hiçbir değer saklanmaz.</p>
+    </div>
+    <div class="controls">
+      <span class="chip" id="model-chip">Model: —</span>
+      <div class="seg" role="group" aria-label="Zaman aralığı">
+        <button type="button" data-days="7">7 gün</button>
+        <button type="button" data-days="30" aria-pressed="true">30 gün</button>
+        <button type="button" data-days="90">90 gün</button>
+      </div>
+    </div>
+  </header>
+
+  <form id="auth" class="card">
+    <label for="token">Yönetici anahtarı</label><br>
+    <input id="token" type="password" autocomplete="current-password">
+    <button type="submit">Giriş</button>
+  </form>
+
+  <section class="kpis" aria-label="Özet">
+    <div class="card kpi"><div class="label">Kontrol edilen mesaj</div><div class="value" id="k-messages">—</div><div class="note" id="k-messages-note"></div></div>
+    <div class="card kpi"><div class="label">Maskelenen kişisel veri</div><div class="value" id="k-masked">—</div><div class="note">LLM'e yer tutucu olarak gitti</div></div>
+    <div class="card kpi"><div class="label">Engellenen mesaj</div><div class="value" id="k-blocked">—</div><div class="note">Politika gereği hiç gönderilmedi</div></div>
+    <div class="card kpi"><div class="label">Yanlış alarm geri bildirimi</div><div class="value" id="k-fp">—</div><div class="note">Kullanıcının işaretini kaldırdığı bulguların oranı</div></div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2>Günlük maskelenen veri</h2>
+      <p class="desc">Gün başına yer tutucuyla değiştirilen kişisel veri sayısı</p>
+      <div id="daily-chart"></div>
+    </div>
+    <div class="card">
+      <h2>Türe göre maskelenen</h2>
+      <p class="desc">Seçili dönemde, en çoktan aza</p>
+      <div id="type-chart"></div>
+    </div>
+  </section>
+
+  <section class="grid3">
+    <div class="card">
+      <h2>Yanlış alarm, türe göre</h2>
+      <p class="desc">Öğrenme döngüsü için: kullanıcı "kişisel veri değil" dedi</p>
+      <div id="fp-table"></div>
+    </div>
+    <div class="card">
+      <h2>Kararlar</h2>
+      <p class="desc">Gönderim denemelerinin sonucu</p>
+      <div id="outcome-table"></div>
+    </div>
+    <div class="card">
+      <h2>Kurum politikası</h2>
+      <p class="desc">Tür başına eylem (config/policy.yml)</p>
+      <div id="policy-table"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Son kayıtlar</h2>
+    <p class="desc">En yeni 20 karar; zaman dakikaya yuvarlanır, değerler kaydedilmez</p>
+    <div id="recent-table"></div>
+  </section>
+
+  <p class="privacy">Gizlilik: Denetim günlüğü yalnızca tür başına sayıları, siteyi ve kararı tutar. Metin, kişisel veri değeri, değer özeti ya da kullanıcı kimliği kaydedilmez; kayıtlar saklama süresi dolunca silinir.</p>
+  <div class="tooltip" id="tooltip" role="status"></div>
+</main>
+<script src="/panel/panel.js"></script>
+</body>
+</html>

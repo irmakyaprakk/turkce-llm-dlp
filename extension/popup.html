@@ -23,11 +23,12 @@
   <h1>Türkçe LLM DLP</h1>
   <label><input id="enabled" type="checkbox"> Gönderim öncesi kontrolü etkinleştir</label>
   <label><input id="preview" type="checkbox"> Göndermeden önce bulunanları göster</label>
+  <label title="Yanıtlar geri çevrilmez; sohbet, yapay zekâya giden yer tutucularla görünür. Sayfa yenilenir."><input id="show-masked" type="checkbox"> Yapay zekânın gördüğünü göster</label>
   <div id="status" role="status"></div>
   <div id="service"></div>
   <div id="conversation"></div>
   <button id="clear" type="button" disabled>Bu sohbetin eşlemesini sil</button>
-  <p>Kontrol, bilgisayarındaki 127.0.0.1:8000 servisine yapılır; servis ulaşılamazsa mesaj gönderilmez. Servisi arka planda sürekli çalıştırmak için scripts/macos/servisi_kur.command dosyasını bir kez çalıştırın. Eşlemeler yalnızca tarayıcı belleğinde tutulur, tarayıcı kapanınca silinir.</p>
+  <p>Kontrol, bilgisayarındaki 127.0.0.1:8000 servisine yapılır; servis ulaşılamazsa mesaj gönderilmez. Servisi arka planda sürekli çalıştırmak için scripts/macos/servisi_kur.command dosyasını bir kez çalıştırın. Eşlemeler yalnızca tarayıcı belleğinde tutulur, tarayıcı kapanınca silinir. Yönetici paneli için servise yalnızca tür başına sayılar (ör. "Kişi: 2") bildirilir; metin ve değerler gönderilmez.</p>
   <script src="popup.js"></script>
 </body>
 </html>

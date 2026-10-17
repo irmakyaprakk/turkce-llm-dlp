@@ -169,6 +169,42 @@ await step("popup yerel servisin durumunu gösterir", async () => {
   await popup.close();
 });
 
+await step("denetim günlüğüne yalnız sayılar gider", async () => {
+  await page.waitForTimeout(500); // kayıtlar arka planda, gönderimi beklemeden yazılır
+  const summary = await (await fetch("http://127.0.0.1:8000/v1/audit/summary?days=1")).json();
+  assert.equal(summary.outcomes.blocked, 1, JSON.stringify(summary.outcomes));
+  assert.ok(summary.outcomes.masked >= 2, JSON.stringify(summary.outcomes));
+  assert.equal(summary.unchecked.EMAIL, 1, "işareti kaldırılan e-posta yanlış alarm olarak sayılmalı");
+  assert.deepEqual(Object.keys(summary.sites), ["127.0.0.1"]);
+  const raw = JSON.stringify(summary);
+  for (const value of [TCKN, EMAIL, "GizliParola123", "Gül Sk."]) assert.ok(!raw.includes(value), `denetimde değer: ${value}`);
+});
+
+await step("'yapay zekânın gördüğünü göster' açıkken yer tutucular geri çevrilmez", async () => {
+  await page.goto(`${MOCK}/c/sohbet0001abc`); // [EPOSTA_1] bu sohbetin eşlemesinde
+  await page.waitForTimeout(1500);
+  const worker = context.serviceWorkers()[0];
+  await Promise.all([
+    page.waitForEvent("load"),
+    worker.evaluate(() => chrome.storage.local.set({showMasked: true}))
+  ]);
+  await page.waitForTimeout(1500);
+  await page.locator("#turkce-dlp-masked-badge").waitFor();
+  await page.evaluate(() => {
+    const div = document.createElement("div");
+    div.dataset.messageAuthorRole = "assistant";
+    div.id = "masked-view";
+    div.textContent = "Görünüm: [EPOSTA_1]";
+    document.getElementById("thread").append(div);
+  });
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator("#masked-view").textContent(), "Görünüm: [EPOSTA_1]");
+  await worker.evaluate(() => chrome.storage.local.set({showMasked: false}));
+  await page.waitForTimeout(500);
+  assert.equal(await page.locator("#masked-view").textContent(), `Görünüm: ${EMAIL}`);
+  assert.equal(await page.locator("#turkce-dlp-masked-badge").count(), 0);
+});
+
 await step("servis kapalıysa gönderim durur ve neden açıkça söylenir", async () => {
   await page.goto(`${MOCK}/c/kapali0001abc`);
   await page.waitForTimeout(1500);

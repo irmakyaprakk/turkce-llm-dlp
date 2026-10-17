@@ -10,15 +10,50 @@
   let vault = new ConversationVault();
   let vaultReady = loadVault();
 
-  chrome.storage.local.get({enabled: true, preview: true}, (settings) => {
-    enabled = settings.enabled !== false;
-    preview = settings.preview !== false;
+  // showMasked: yanıtlar geri çevrilmez; sayfa LLM'in gördüğü yer tutucularla görünür (şeffaflık/demo).
+  let showMasked = false;
+  const settingsReady = new Promise((resolve) => {
+    chrome.storage.local.get({enabled: true, preview: true, showMasked: false}, (settings) => {
+      enabled = settings.enabled !== false;
+      preview = settings.preview !== false;
+      showMasked = settings.showMasked === true;
+      renderMaskedBadge();
+      resolve();
+    });
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     if (changes.enabled) enabled = changes.enabled.newValue !== false;
     if (changes.preview) preview = changes.preview.newValue !== false;
+    if (changes.showMasked) {
+      showMasked = changes.showMasked.newValue === true;
+      // Geri çevrilmiş metin sayfada kalıcıdır: yer tutucuları yeniden görmek için site sayfayı yeniden çizmeli.
+      if (showMasked) location.reload();
+      else {
+        renderMaskedBadge();
+        restoreVisibleText(document.body);
+      }
+    }
   });
+
+  function renderMaskedBadge() {
+    const existing = document.getElementById("turkce-dlp-masked-badge");
+    if (!showMasked) {
+      existing?.remove();
+      return;
+    }
+    if (existing || !document.body) return;
+    const badge = document.createElement("div");
+    badge.id = "turkce-dlp-masked-badge";
+    badge.setAttribute("role", "status");
+    badge.textContent = "Maskeli görünüm: yapay zekânın gördüğü metin";
+    Object.assign(badge.style, {
+      position: "fixed", left: "16px", bottom: "16px", zIndex: "2147483646", padding: "6px 12px",
+      borderRadius: "999px", background: "#1d4ed8", color: "#fff", font: "600 12px system-ui, sans-serif",
+      boxShadow: "0 4px 14px rgba(0,0,0,.25)", pointerEvents: "none"
+    });
+    document.body.appendChild(badge);
+  }
 
   // ---------------------------------------------------------------------------
   // Sohbet kasası (arka plandaki oturum belleğinde)
@@ -26,6 +61,7 @@
   async function loadVault() {
     const response = await chrome.runtime.sendMessage({type: "turkce-dlp-vault-get", key: currentKey});
     vault = new ConversationVault(response?.state || {});
+    await settingsReady;
     restoreVisibleText(document.body);
   }
 
@@ -259,7 +295,7 @@
   // Yanıtta geri eşleme
   // ---------------------------------------------------------------------------
   function restoreVisibleText(root) {
-    if (!vault.size || !(root instanceof Node)) return;
+    if (showMasked || !vault.size || !(root instanceof Node)) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         const parent = node.parentElement;
@@ -288,6 +324,23 @@
   // ---------------------------------------------------------------------------
   // Gönderimi yakalama
   // ---------------------------------------------------------------------------
+  function countTypes(items) {
+    const counts = {};
+    for (const item of items) counts[item.type] = (counts[item.type] || 0) + 1;
+    return counts;
+  }
+
+  // Yönetici paneli için anonim kayıt: yalnız tür başına sayılar gider, metin ve değerler asla.
+  function audit(outcome, candidates, masked = [], unchecked = []) {
+    chrome.runtime.sendMessage({
+      type: "turkce-dlp-audit",
+      outcome,
+      detected: countTypes(candidates),
+      masked: countTypes(masked),
+      unchecked: countTypes(unchecked)
+    }).catch(() => {});
+  }
+
   async function intercept(event, composer, replay) {
     if (!enabled || replayingSubmit || pendingSubmit || !composer) return;
     const text = readComposer(composer);
@@ -302,14 +355,19 @@
         throw new Error(payload?.reason || "api_error");
       }
       const blocked = payload.detections.filter((item) => item.action === "block");
-      let selected = payload.detections.filter((item) => item.action !== "block" && item.action !== "allow");
+      const candidates = payload.detections.filter((item) => item.action !== "block" && item.action !== "allow");
+      let selected = candidates;
       if (blocked.length) {
+        audit("blocked", [...blocked, ...candidates]);
         await confirmDetections(text, selected, blocked);
         return;
       }
       if (selected.length && preview) {
         selected = await confirmDetections(text, selected, []);
-        if (selected === null) return; // kullanıcı vazgeçti; mesaj alanı olduğu gibi kalır
+        if (selected === null) {
+          audit("cancelled", candidates);
+          return; // kullanıcı vazgeçti; mesaj alanı olduğu gibi kalır
+        }
       }
       if (!selected.length) showError("Türkçe LLM DLP: Kişisel veri bulunmadı, mesaj olduğu gibi gönderildi.", "info");
       if (selected.length) {
@@ -325,6 +383,7 @@
       replayingSubmit = true;
       replay();
       queueMicrotask(() => { replayingSubmit = false; });
+      audit(selected.length ? "masked" : "clean", candidates, selected, candidates.filter((item) => !selected.includes(item)));
     } catch (error) {
       showError(explain(error));
     } finally {

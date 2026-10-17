@@ -3,20 +3,24 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import os
+from importlib import resources
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, Query
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
+from .audit import AuditEvent, AuditLog
 from .gateway import DemoProvider, Gateway, OpenAICompatibleProvider, UpstreamUnavailable
 from .gazetteer import FacilityRecognizer, LocationGazetteer
 from .masking import process_demo
-from .ner import DetectionPipeline, HuggingFaceNERRecognizer
-from .policy import Policy
+from .ner import DetectionPipeline, HuggingFaceNERRecognizer, ProcessIsolatedHuggingFaceNERRecognizer
+from .policy import ENTITY_TYPES, Policy
 from .rules_ner import RuleEntityRecognizer
 
 MAX_TEXT_LENGTH = 20_000
@@ -137,8 +141,45 @@ def _configured_provider():
     raise ValueError("TURKCE_DLP_UPSTREAM demo veya openai_compatible olmalı.")
 
 
+def _configured_audit() -> AuditLog | None:
+    # Anonim denetim günlüğü (yalnız tür sayıları); TURKCE_DLP_AUDIT=0 ile kapatılır.
+    if os.environ.get("TURKCE_DLP_AUDIT", "1").strip() == "0":
+        return None
+    default = Path.home() / ".turkce-dlp" / "audit.sqlite3"
+    retention = int(os.environ.get("TURKCE_DLP_AUDIT_RETENTION_DAYS", "90"))
+    try:
+        return AuditLog(os.environ.get("TURKCE_DLP_AUDIT_DB", str(default)), retention_days=retention)
+    except OSError:
+        logger.warning("Denetim günlüğü açılamadı; günlük tutulmadan devam ediliyor.")
+        return None
+
+
 detection_pipeline = _configured_detector()
 gateway = Gateway(_configured_provider(), _configured_policy(), detector=detection_pipeline.detect)
+audit_log = _configured_audit()
+
+
+def _admin_allowed(token: str | None) -> bool:
+    # Panel ve özet yalnız yerel adreste dinlenir; kurumsal kurulumda TURKCE_DLP_ADMIN_TOKEN ile korunur.
+    expected = os.environ.get("TURKCE_DLP_ADMIN_TOKEN", "")
+    return not expected or (token is not None and hmac.compare_digest(token, expected))
+
+
+def _record(source: str, site: str, outcome: str, detected: dict, masked: dict) -> None:
+    if audit_log is None:
+        return
+    try:
+        audit_log.record(AuditEvent(source=source, site=site, outcome=outcome, detected=detected, masked=masked))
+    except Exception:
+        logger.warning("Denetim kaydı yazılamadı.")
+
+
+def _type_counts(items: list[dict], action: str | None = None) -> dict:
+    counts: dict[str, int] = {}
+    for item in items:
+        if action is None or item.get("action") == action:
+            counts[item["type"]] = counts.get(item["type"], 0) + 1
+    return counts
 
 
 class TextRequest(BaseModel):
@@ -198,9 +239,66 @@ async def gateway_route(request: TextRequest):
         result = await gateway.process(request.text)
     except UpstreamUnavailable:
         return JSONResponse(status_code=502, content={"detail": "Upstream sağlayıcı isteği tamamlayamadı."})
+    detected = _type_counts(result["detections"])
     if result["blocked"]:
+        _record("gateway", "gateway", "blocked", detected, {})
         return JSONResponse(status_code=403, content=result)
+    masked = _type_counts(result["detections"], "mask")
+    _record("gateway", "gateway", "masked" if masked else "clean", detected, masked)
     return result
+
+
+@app.post("/v1/audit/event", status_code=204)
+def audit_event_route(event: AuditEvent):
+    # Eklenti gönderim kararından sonra yalnız sayıları bildirir (metin ya da değer içermez).
+    if audit_log is not None:
+        try:
+            audit_log.record(event)
+        except Exception:
+            logger.warning("Denetim kaydı yazılamadı.")
+
+
+@app.get("/v1/audit/summary")
+def audit_summary_route(days: int = Query(30, ge=1, le=365), x_admin_token: str | None = Header(default=None)):
+    if not _admin_allowed(x_admin_token):
+        return JSONResponse(status_code=401, content={"detail": "Yetkisiz."})
+    if audit_log is None:
+        return JSONResponse(status_code=404, content={"detail": "Denetim günlüğü kapalı."})
+    summary = audit_log.summary(days=days)
+    summary["policy"] = {
+        "default_action": gateway.policy.default_action,
+        "rules": {kind: gateway.policy.action_for(kind) for kind in sorted(ENTITY_TYPES)},
+    }
+    summary["model"] = any(
+        isinstance(r, HuggingFaceNERRecognizer | ProcessIsolatedHuggingFaceNERRecognizer)
+        for r in detection_pipeline.recognizers
+    )
+    return summary
+
+
+PANEL_CSP = (
+    "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; "
+    "img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+)
+
+
+def _panel_asset(name: str) -> str:
+    return resources.files("turkce_llm_dlp").joinpath(f"panel/{name}").read_text(encoding="utf-8")
+
+
+@app.get("/panel", response_class=HTMLResponse)
+def panel_route():
+    # Statik sayfa; veriyi /v1/audit/summary'den (gerekirse yönetici anahtarıyla) çeker. Dış kaynak yüklenmez.
+    return HTMLResponse(_panel_asset("index.html"), headers={"Content-Security-Policy": PANEL_CSP})
+
+
+@app.get("/panel/panel.js")
+def panel_script_route():
+    return Response(
+        _panel_asset("panel.js"),
+        media_type="text/javascript; charset=utf-8",
+        headers={"Content-Security-Policy": PANEL_CSP},
+    )
 
 
 @app.post("/v1/gateway/stream")

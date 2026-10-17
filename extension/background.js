@@ -3,6 +3,18 @@
 // Test sürümünde (scripts/e2e) bu küme yerel sahte sohbet sayfasıyla genişletilir.
 const ALLOWED_SITES = new Set(["chatgpt.com", "www.chatgpt.com", "claude.ai", "www.claude.ai"]);
 const API_URL = "http://127.0.0.1:8000/v1/detect";
+const AUDIT_URL = API_URL.replace("/v1/detect", "/v1/audit/event");
+const AUDIT_OUTCOMES = new Set(["masked", "clean", "blocked", "cancelled"]);
+
+// Yalnız {"PERSON": 2} biçimli sayılar geçer; değer ya da metin taşıyabilecek her şey atılır.
+function typeCounts(value) {
+  const counts = {};
+  if (!value || typeof value !== "object") return counts;
+  for (const [kind, count] of Object.entries(value)) {
+    if (/^[A-Z_]{2,20}$/.test(kind) && Number.isInteger(count) && count > 0 && count <= 10000) counts[kind] = count;
+  }
+  return counts;
+}
 const VAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const VAULT_PREFIX = "vault:";
 
@@ -52,6 +64,32 @@ async function handle(message, sender) {
     const payload = await response.json();
     if (!Array.isArray(payload.detections)) return {error: true};
     return {detections: payload.detections};
+  }
+
+  // Anonim denetim kaydı: site adı + karar + tür başına sayılar. Başarısızlık gönderimi etkilemez.
+  if (message.type === "turkce-dlp-audit") {
+    if (!AUDIT_OUTCOMES.has(message.outcome)) return {error: true};
+    const event = {
+      source: "extension",
+      site: host.replace(/^www\./, ""),
+      outcome: message.outcome,
+      detected: typeCounts(message.detected),
+      masked: typeCounts(message.masked),
+      unchecked: typeCounts(message.unchecked)
+    };
+    try {
+      await fetch(AUDIT_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(event),
+        cache: "no-store",
+        credentials: "omit",
+        signal: AbortSignal.timeout(3000)
+      });
+    } catch (_error) {
+      // servis kapalıysa kayıt düşer; mesaj akışı bundan etkilenmez
+    }
+    return {ok: true};
   }
 
   // Kasa yalnız bellekte tutulan oturum deposunda (chrome.storage.session) saklanır; diske yazılmaz,

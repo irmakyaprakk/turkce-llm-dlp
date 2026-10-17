@@ -5,6 +5,9 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       TURKCE_DLP_UPSTREAM: demo
+      # Paylaşılan sunucuda panel özetini korumak için: TURKCE_DLP_ADMIN_TOKEN
+    volumes:
+      - audit-data:/data
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=32m
@@ -14,3 +17,6 @@ services:
       - no-new-privileges:true
     pids_limit: 128
     restart: unless-stopped
+
+volumes:
+  audit-data:

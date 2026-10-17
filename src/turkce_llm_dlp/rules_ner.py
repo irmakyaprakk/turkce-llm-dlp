@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
-from ._gazetteer_data import province_and_district_keys
+from ._gazetteer_data import load_gazetteer, province_and_district_keys
 from .ner import EntitySpan
 
 TOKEN_RE = re.compile(r"\w+(?:['’]\w+)*|[^\w\s]", re.UNICODE)
@@ -199,10 +199,71 @@ NAME_STOP = frozenset(
     for w in (
         "ve ile de da ki ben sen o bu şu biz siz mi mı mu mü ama fakat çünkü ya yani hem gibi için "
         "tc numaram numarası telefon tel e-posta mail adres adresim yaşında yaşındayım öğrenci bir çok "
-        "burada şurada orada evet hayır merhaba selam iyi günler hocam bey hanım"
+        "burada şurada orada evet hayır merhaba selam iyi günler hocam bey hanım ne nedir kim nasıl "
+        "olarak var yok soyadım soyadı soyismim soyisimim soyisim"
     ).split()
 )
 COPULA_END = re.compile(r"(y[ıiuü]m|[ıiuü]m|y[ıiuü]z|d[ıiuü]r|t[ıiuü]r)$")
+# Birinci tekil soyadı ipuçları ("soyisimim yaprak", "soyadım: Kaya"); _key ASCII'ye katlar
+SURNAME_CUES = frozenset({"soyadim", "soyadimiz", "soyismim", "soyisimim", "soyisim", "soyad"})
+# Yer adı + bitişik bulunma/ayrılma eki: "ali yılmaz ankarada" → soyadı "ankarada"da biter
+_PLACE_CASE_SUFFIX = re.compile(r"(nda|nde|da|de|ta|te|ndan|nden|dan|den|tan|ten|daki|deki|taki|teki)$")
+_SOFT = {"g": "k", "b": "p", "d": "t", "c": "c"}
+
+
+def _is_place_with_case(key: str) -> bool:
+    match = _PLACE_CASE_SUFFIX.search(key)
+    if not match or len(key) - len(match.group()) < 3:
+        return False
+    stem = key[: match.start()]
+    places = load_gazetteer()["places"]  # il/ilçe/ülke; lru_cache ile bir kez yüklenir
+    return any(s in PLACES or s in places for s in (stem, stem[:-1] + _SOFT.get(stem[-1], stem[-1])))
+
+
+# Küçük harfli kurum baş sözcüğünün bitişik eki: "üniversitesinde", "hastanesine", "lisesinden"
+_HEAD_CASE_SUFFIX = re.compile(r"(nde|nda|ne|na|nin|nın|nun|nün|nden|ndan|yle|yla|ndeki|ndaki)$")
+
+
+# Küçük harfle yalnız kurum adı olmaya elverişli baş sözcükler; "çağrı merkezi", "vergi dairesi" gibi
+# genel adlar küçük harfle kurum sayılmaz.
+LOWER_ORG_HEADS = frozenset(
+    _key(w)
+    for w in (
+        "Üniversitesi Fakültesi Lisesi Koleji Hastanesi Belediyesi Enstitüsü Akademisi Bankası Holding "
+        "Valiliği Kaymakamlığı Müdürlüğü Bakanlığı Ortaokulu İlkokulu Yüksekokulu Konservatuvarı"
+    ).split()
+)
+
+
+def _head_stem_len(key: str) -> int:
+    """Küçük harfli kurum baş sözcüğüyse (ekli ya da eksiz) ekin atıldığı uzunluğu, değilse 0 döndürür."""
+    if key in LOWER_ORG_HEADS:
+        return len(key)
+    match = _HEAD_CASE_SUFFIX.search(key)
+    if match and key[: match.start()] in LOWER_ORG_HEADS:
+        return match.start()
+    return 0
+
+
+# Küçük harfle yazılmış kurum adları ("mehmet akif üniversitesi") için ad kanıtı: bilinen ad, yer adı
+# ya da sık geçen kurum adı sözcüğü olmalı; "bu üniversitesi", "okulun hastanesi" kurum sayılmaz.
+LOWER_ORG_NAME_WORDS = frozenset(
+    _key(w)
+    for w in (
+        "boğaziçi odtü itü ytü hacettepe bilkent sabancı koç marmara ege akdeniz karadeniz gazi yıldız uludağ "
+        "erciyes atatürk inönü fırat dicle harran pamukkale selçuk ondokuz dokuz eylül çukurova istinye "
+        "bahçeşehir medipol başkent özyeğin yeditepe maltepe kadir has acıbadem bezmialem galatasaray "
+        "anadolu ankara istanbul izmir cumhuriyet atılım çankaya hacı bayram veli ersoy akif demirel "
+        "dumlupınar kocaeli sakarya trakya mersin kırıkkale abant kafkas munzur bülent ecevit mimar sinan"
+    ).split()
+)
+LOWER_ORG_STOP = frozenset(
+    _key(w)
+    for w in (
+        "bu şu o bir ve ile de da ki ben sen biz siz onlar benim senin bizim sizin onun için gibi en çok "
+        "her hangi hangisi şimdi sonra önce yeni eski büyük küçük devlet özel vakıf hem ya ama ne"
+    ).split()
+)
 
 
 class RuleEntityRecognizer:
@@ -221,7 +282,7 @@ class RuleEntityRecognizer:
         tokens = [(m.group(), m.start(), m.end()) for m in TOKEN_RE.finditer(text)]
         spans = list(self._addresses(text, tokens))
         taken = [(s.start, s.end) for s in spans]
-        for span in [*self._orgs(text, tokens), *self._persons(text, tokens)]:
+        for span in [*self._orgs(text, tokens), *self._lower_orgs(text, tokens), *self._persons(text, tokens)]:
             if not any(span.start < end and span.end > start for start, end in taken):
                 spans.append(span)
                 taken.append((span.start, span.end))
@@ -253,6 +314,14 @@ class RuleEntityRecognizer:
                 start, strong = cursor, evidence == "any"
             elif key == "ben" and index + 1 < len(tokens):
                 start, strong = index + 1, False
+            surname = key in SURNAME_CUES and not (key == "soyad" and prev_key in {"ad", "adi"})
+            if surname and (key != "soyisim" and key != "soyad" or next_key == ":"):
+                cursor = index + 1
+                while cursor < len(tokens) and tokens[cursor][0] in ":-":
+                    cursor += 1
+                span = self._name_run(text, tokens, keys, cursor, True, limit=2)
+                if span:
+                    yield span
             if start is not None:
                 span = self._name_run(text, tokens, keys, start, strong)
                 if span:
@@ -271,11 +340,11 @@ class RuleEntityRecognizer:
                     yield EntitySpan("PERSON", p_start, p_end)
 
     @staticmethod
-    def _name_run(text, tokens, keys, start, strong):
+    def _name_run(text, tokens, keys, start, strong, limit=3):
         """İpucundan sonraki 1-3 sözcüklük adı döndürür; kopula/fiil ekli sözcükte durur ("öğrenciyim")."""
         words = []
         cursor = start
-        while cursor < len(tokens) and len(words) < 3:
+        while cursor < len(tokens) and len(words) < limit:
             token = tokens[cursor][0]
             base = _base(token)
             key = keys[cursor]
@@ -284,6 +353,8 @@ class RuleEntityRecognizer:
             stop = key in NAME_STOP and not (words and base[:1].isupper())  # "Tuğba Şen": büyük harfli soyadı
             if not _is_alpha_word(base) or stop or (len(key) >= 6 and COPULA_END.search(key)):
                 break
+            if words and base == token and token[:1].islower() and _is_place_with_case(key):
+                break  # "ali yılmaz ankarada": eki bitişik yer adı adın parçası değildir
             words.append(cursor)
             if base != token:  # "Irmak'ım", "Kaya'yım": ekli sözcük adın sonudur
                 break
@@ -308,6 +379,7 @@ class RuleEntityRecognizer:
                     break
             words = kept
             ends_here = words[-1] + 1 >= len(tokens) or tokens[words[-1] + 1][0] in ",.!?;:"
+            ends_here = ends_here or keys[words[-1] + 1] in SURNAME_CUES  # "ben ırmak soyisimim yaprak"
             if first_key in AMBIGUOUS_NAMES and not (ends_here or len(words) > 1 and first[0].isupper()):
                 return None
         last = tokens[words[-1]]
@@ -376,6 +448,63 @@ class RuleEntityRecognizer:
             end = last[1] + len(_base(last[0]))
             consumed = end_index
             yield EntitySpan("ORG", start, end)
+
+    def _lower_orgs(self, text: str, tokens):
+        """Tamamı küçük harfle yazılmış kurum: "mehmet akif üniversitesi teknoloji fakültesi"."""
+        keys = [_key(_base(tok)) for tok, _, _ in tokens]
+
+        def plain(i):  # ekli/büyük harfli olmayan, fiil/kopula olmayan küçük harfli sözcük
+            token = tokens[i][0]
+            return (
+                _is_alpha_word(token)
+                and "'" not in token
+                and "’" not in token
+                and token[:1].islower()
+                and keys[i] not in LOWER_ORG_STOP
+                and not _head_stem_len(keys[i])
+                and not (len(keys[i]) >= 6 and COPULA_END.search(keys[i]))
+                and (i + 1 >= len(tokens) or "\n" not in text[tokens[i][2] : tokens[i + 1][1]])
+            )
+
+        def is_head(i):
+            return bool(_head_stem_len(keys[i])) and tokens[i][0][:1].islower()
+
+        consumed = -1
+        for index in range(len(tokens)):
+            if index <= consumed or not is_head(index):
+                continue
+            left = []
+            cursor = index - 1
+            while cursor >= 0 and len(left) < 3 and plain(cursor):
+                left.append(cursor)
+                cursor -= 1
+            evidence = [
+                i
+                for i in left
+                if keys[i] in TURKISH_FIRST_NAMES or keys[i] in PLACES or keys[i] in LOWER_ORG_NAME_WORDS
+            ]
+            if not evidence:
+                continue
+            start_index = min(evidence)  # en soldaki kanıtlı sözcükten başla ("okuduğum" gibi önekler dışarıda)
+            end_index = index
+            # "üniversitesi teknoloji fakültesi": 0-2 ara sözcükle gelen bir sonraki baş sözcük
+            while (
+                "'" not in tokens[end_index][0]
+                and "’" not in tokens[end_index][0]
+                and _head_stem_len(keys[end_index]) == len(keys[end_index])  # ekli baş sözcük kurumu bitirir
+            ):
+                nxt = end_index + 1
+                gap = 0
+                while nxt < len(tokens) and gap < 2 and not is_head(nxt) and plain(nxt):
+                    nxt += 1
+                    gap += 1
+                if nxt < len(tokens) and is_head(nxt) and "\n" not in text[tokens[end_index][2] : tokens[nxt][1]]:
+                    end_index = nxt
+                else:
+                    break
+            consumed = end_index
+            last = tokens[end_index]
+            yield EntitySpan("ORG", tokens[start_index][1], last[1] + _head_stem_len(keys[end_index]))
 
     # --- adresler ---
     def _addresses(self, text: str, tokens):

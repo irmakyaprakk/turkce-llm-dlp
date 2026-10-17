@@ -26,7 +26,7 @@ filterwarnings = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-turkce_llm_dlp = ["data/*.json.gz", "data/*.txt"]
+turkce_llm_dlp = ["data/*.json.gz", "data/*.txt", "panel/*"]
 
 [tool.ruff]
 line-length = 120

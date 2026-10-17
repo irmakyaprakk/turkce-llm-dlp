@@ -229,7 +229,7 @@
     } catch (_error) {
       return null;
     }
-    const match = parsed.pathname.match(/\/(?:c|chat)\/([A-Za-z0-9_-]{6,})/);
+    const match = parsed.pathname.match(/\/(?:c|uc|chat)\/([A-Za-z0-9_-]{6,})/);
     return `${parsed.hostname}:${match ? match[1] : "new"}`;
   }
 

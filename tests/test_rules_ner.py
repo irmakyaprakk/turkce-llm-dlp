@@ -183,8 +183,32 @@ def test_org_compounds_city_prefix_and_subunit_are_merged():
         ("BEN MEMNUN KALDIM", []),
         ("ev hanımı olarak çalışıyor", []),
         ("Veli adı soyadı: Tülay Yazıcı\nÖğrencinin okulu", ["Tülay Yazıcı"]),
+        # gerçek kullanımdan (v4.3): soyadı ipucu ve "ben <belirsiz ad> soyisimim <soyad>"
+        ("selam ben ırmak soyisimim yaprak bucakta okuyorum", ["ırmak", "yaprak"]),
+        ("ismim ırmak soyismim yaprak", ["ırmak", "yaprak"]),
+        ("soyadım: Kaya", ["Kaya"]),
+        ("benim adım ali yılmaz ankarada yaşıyorum", ["ali yılmaz"]),
+        ("babamın soyadı ne", []),
+        ("soyisim alanı zorunlu", []),
     ],
 )
 def test_person_cues(text, expected):
     found = [text[s.start : s.end] for s in RuleEntityRecognizer().recognize(text) if s.type == "PERSON"]
+    assert found == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("mehmet akif üniversitesi teknoloji fakültesi", ["mehmet akif üniversitesi teknoloji fakültesi"]),
+        ("boğaziçi üniversitesinde okudum", ["boğaziçi üniversitesi"]),
+        ("hacettepe hastanesine gittim", ["hacettepe hastanesi"]),
+        ("ankara fen lisesinden mezunum", ["ankara fen lisesi"]),
+        ("devlet hastanesine gittim", []),
+        ("bu üniversitesi güzel", []),
+        ("vestel çağrı merkezinden aradılar", []),
+    ],
+)
+def test_lowercase_orgs(text, expected):
+    found = [text[s.start : s.end] for s in RuleEntityRecognizer().recognize(text) if s.type == "ORG"]
     assert found == expected

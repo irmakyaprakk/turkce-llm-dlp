@@ -265,3 +265,13 @@ Eklentiyle gerçek ChatGPT denemesinde iki kaçırma görüldü ve modelden bağ
 - **Telefon:** Öneksiz, ayraçsız numaralar ("ararmısın 5477658697", "hey 2125462345") yakalanmıyordu. Cep operatör önekleri (50x/53x/54x/55x/56x) ve BTK il alan kodlarıyla başlayan 10 haneli sayılar artık telefon sayılır; "sipariş/fatura/takip/hesap no" bağlamı ve tutar birimleri ("5000000000 TL") yanlış alarmı önler.
 - **Kişi (tanıtım ipuçları):** Model "benim adım ırmak", "merhaba ben ırmak" gibi küçük harfli, sözcük anlamı da olan adları kaçırıyordu. Model öncelikli (yalnızca boşluk dolduran) bir kural eklendi: "benim adım / ismim / Ad Soyad: / İsim:" sonrası ad; "ben X" ve "X bey/hanım" için ad listesinde (262 yaygın ad) bulunma şartı; "bir adım gerisinde", "işim gereği", "Ben Samsung Galaxy…", "BEN MEMNUN" gibi kalıplar elenir.
   Geliştirme setinde yalnız kural: 10/10 doğru kişi (yanlış alarm 0); 8.000 rastgele ürün yorumunda 4 eşleşme (3'ü gerçek kişi adı). Hibrit F1 değişmedi (0,9725; kural yalnız modelin boş bıraktığı yeri doldurur).
+
+## Gerçek kullanımda görülen hatalar, ikinci tur (v4.3, model değişmedi — sonradan/post-hoc)
+
+ChatGPT denemesinde tamamı küçük harfle yazılmış bir tanıtım mesajı ("selam ben ırmak soyisimim yaprak bucakta okuyorum mehmet akif üniversitesi teknoloji fakültesi") hiç maskelenmeden gitti. Model küçük harfli metinde kişi/kurum/yer bulmuyordu; kural katmanına model öncelikli (boşluk dolduran) üç ekleme yapıldı:
+
+- **Soyadı ipucu:** "soyadım / soyismim / soyisimim / Soyadı:" sonrasındaki 1-2 sözcük; "ben <belirsiz ad>" ardından soyadı ipucu geliyorsa ad kabul edilir. Ad dizisi eki bitişik yer adında durur ("ali yılmaz ankarada" → "ali yılmaz").
+- **Küçük harfli kurum:** "<ad> üniversitesi/fakültesi/lisesi/hastanesi/belediyesi…" (ekli biçimler dahil: "boğaziçi üniversitesinde"); soldaki sözcüklerden en az biri bilinen ad, yer adı ya da sık geçen kurum adı olmalı; "çağrı merkezi", "vergi dairesi" gibi genel baş sözcükler küçük harfle kurum sayılmaz; "üniversitesi teknoloji fakültesi" tek kurum olarak birleşir.
+- **İkamet bağlamı:** Sözcük anlamı da olan yer adları ("Bucak", "Fatih") küçük harfle, bitişik bulunma/ayrılma ekiyle ve ardından ikamet/okul fiiliyle ("bucakta okuyorum") yer adı sayılır; "bahçede oturuyorum", "kalede oturuyorum" gibi mekân kullanımları elenir. Bitişik ekli yer adında ek artık span dışında kalır ("bucakta" → "bucak"): dış servise "[YER_1]ta" gider, yanıt ekranda "bucak'ta" diye doğru çekimle geri çevrilir.
+
+Doğrulama: 37.055 satırlık UCI ürün yorumlarında yeni kurallar 0 eşleşme üretti (ilk taslaktaki 15 "çağrı merkezi" yanlış alarmı baş sözcük listesi daraltılarak giderildi). Geliştirme setinde (realistic-v2) hibrit F1 değişmedi (0,9725). Mühürlü setlere bakılmadı.

@@ -89,6 +89,16 @@ STREET_RE = re.compile(
     r"|sokag(i|inda|ina|inin|indan|indaki)|sokak|sok|sk)$"
 )
 _SHORT_FORMS = frozenset({"mah", "mh", "cad", "cd", "blv", "bulv", "sok", "sk"})
+# "bucakta okuyorum", "fatih'te oturuyorum": eki bitişik yer adının ardından gelen ikamet/okul fiili,
+# sözcük anlamı da olan adları (Bucak, Fatih, Kale…) küçük harfle de yer adı yapar.
+RESIDENCE_VERB = re.compile(
+    r"^(okuyor|oturuyor|yasiyor|calisiyor|kaliyor|geliyor|dogdu|buyudu|okudu|yasadi|oturdu|calisti"
+    r"|tasindi|tasiniyor|ikamet|dogup|buyuyup|yerlesti|yerlesik|staj)"
+)
+# Sözcük anlamı da olan "cap" düzeyi adlar ("Bahçe", "Kale") küçük harfle yalnız "oturmak/çalışmak"
+# gibi mekânda da kullanılan fiillerle değil, açık ikamet/okul fiilleriyle yer adı sayılır.
+RESIDENCE_VERB_STRICT = re.compile(r"^(okuyor|yasiyor|dogdu|buyudu|okudu|yasadi|tasindi|tasiniyor|ikamet|yerlesti)")
+_LOCATIVE = re.compile(r"(nda|nde|da|de|ta|te|ndan|nden|dan|den|tan|ten)$")
 _SENTENCE_END = frozenset({".", "!", "?", ":", ";", "…"})
 _WORD_RE = re.compile(r"^[^\W\d_]", re.UNICODE)
 
@@ -252,10 +262,15 @@ class LocationGazetteer:
         key = keys[index]
         entry = self._places.get(key)
         via_suffix = False
+        length = len(base) if has_apostrophe else len(token)
         if entry is None and not has_apostrophe and key not in self._collisions:
             for stem in stems(key, minimum=4):
                 if stem in self._places:
                     entry, via_suffix = self._places[stem], True
+                    # "bucakta" → "bucak": bitişik ek span dışında kalır, yer tutucu "[YER_1]ta" olur.
+                    # Ünsüz yumuşamasında ("bucağa") kök yazımı değiştiği için sözcüğün tamamı alınır.
+                    if key.startswith(stem):
+                        length = len(stem)
                     break
         if entry is None:
             return None
@@ -268,6 +283,13 @@ class LocationGazetteer:
         if next_key in HONORIFICS or prev_key in TITLES:
             return None
         admin_context = bool(ADMIN_CONTEXT.match(next_key))
+        suffix = token[len(base) + 1 :] if has_apostrophe else key
+        residence = (
+            bool(RESIDENCE_VERB.match(next_key))
+            and (has_apostrophe or via_suffix)
+            and bool(_LOCATIVE.search(_key_exact(suffix).translate(str.maketrans("çğıöşü", "cgiosu"))))
+        )
+        admin_context = admin_context or (residence and tier != "calendar")
         if tier == "calendar":  # "Aralık'ta", "Pazar günü": yalnız "Pazar ilçesi" gibi açık bağlamda
             if not admin_context:
                 return None
@@ -278,7 +300,8 @@ class LocationGazetteer:
             if not ((has_apostrophe and capital) or via_suffix or admin_context):
                 return None
         elif tier == "cap":
-            if not capital or (index in starts and not has_apostrophe and not admin_context):
+            strict = residence and bool(RESIDENCE_VERB_STRICT.match(next_key))
+            if not (capital or strict) or (index in starts and not has_apostrophe and not admin_context):
                 return None
         else:  # free
             if not capital and not has_apostrophe:
@@ -294,7 +317,7 @@ class LocationGazetteer:
         if capital and not has_apostrophe and not via_suffix and not admin_context:
             if self._capital_neighbour(tokens, keys, starts, index):
                 return None
-        return EntitySpan("LOCATION", start, start + (len(base) if has_apostrophe else len(token)))
+        return EntitySpan("LOCATION", start, start + length)
 
     def _capital_neighbour(self, tokens, keys, starts, index) -> bool:
         def foreign_capital(i: int) -> bool:

@@ -2,6 +2,7 @@
 
 const enabledInput = document.getElementById("enabled");
 const previewInput = document.getElementById("preview");
+const showMaskedInput = document.getElementById("show-masked");
 const status = document.getElementById("status");
 const conversation = document.getElementById("conversation");
 const clearButton = document.getElementById("clear");
@@ -11,13 +12,15 @@ function render() {
   status.textContent = enabledInput.checked ? "Koruma açık" : "Koruma kapalı";
 }
 
-chrome.storage.local.get({enabled: true, preview: true}, (settings) => {
+chrome.storage.local.get({enabled: true, preview: true, showMasked: false}, (settings) => {
   enabledInput.checked = settings.enabled !== false;
   previewInput.checked = settings.preview !== false;
+  showMaskedInput.checked = settings.showMasked === true;
   render();
 });
 enabledInput.addEventListener("change", () => chrome.storage.local.set({enabled: enabledInput.checked}, render));
 previewInput.addEventListener("change", () => chrome.storage.local.set({preview: previewInput.checked}));
+showMaskedInput.addEventListener("change", () => chrome.storage.local.set({showMasked: showMaskedInput.checked}));
 
 chrome.tabs.query({active: true, currentWindow: true}, ([tab]) => {
   if (!tab?.id) return;
