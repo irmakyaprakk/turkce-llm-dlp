@@ -304,11 +304,16 @@ def panel_script_route():
 @app.post("/v1/gateway/stream")
 async def gateway_stream_route(request: TextRequest):
     prepared = await asyncio.to_thread(gateway.prepare, request.text)
+    detected = _type_counts(prepared.detections)
     if prepared.blocked:
+        _record("gateway", "gateway", "blocked", detected, {})
         return JSONResponse(
             status_code=403,
             content={"blocked": True, "detections": prepared.detections, "count": prepared.count},
         )
+
+    masked = _type_counts(prepared.detections, "mask")
+    _record("gateway", "gateway", "masked" if masked else "clean", detected, masked)
 
     async def events():
         try:

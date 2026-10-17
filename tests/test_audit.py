@@ -105,6 +105,17 @@ def test_gateway_records_counts_only(audited):
     assert "kisi@example.com" not in str(summary)
 
 
+def test_gateway_stream_records_counts_only(audited):
+    client = TestClient(app)
+    with client.stream("POST", "/v1/gateway/stream", json={"text": "İletişim: kisi@example.com"}) as response:
+        assert response.status_code == 200
+        "".join(response.iter_text())
+    summary = client.get("/v1/audit/summary").json()
+    assert summary["messages"] == 1
+    assert summary["outcomes"] == {"masked": 1} and summary["masked"] == {"EMAIL": 1}
+    assert "kisi@example.com" not in str(summary)
+
+
 def test_summary_requires_admin_token_when_configured(audited, monkeypatch):
     monkeypatch.setenv("TURKCE_DLP_ADMIN_TOKEN", "gizli-anahtar")
     client = TestClient(app)

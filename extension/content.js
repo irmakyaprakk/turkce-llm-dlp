@@ -473,6 +473,25 @@
     });
   }, true);
 
+  // Yapıştırma düz metin olarak mesaj alanına yazılır: Claude uzun yapıştırmayı ayrı bir eke çevirir ve ek,
+  // mesaj alanından okunan kontrolün dışında kalırdı. Site kendi yapıştırma işleyicisini çalıştırmaz.
+  window.addEventListener("paste", (event) => {
+    // Zengin metin alanında olayın hedefi imlecin olduğu iç öğedir (ör. <p>): asıl alan yukarıda aranır
+    const target = event.target instanceof Element
+      ? event.target.closest("textarea, input[type='text'], [contenteditable='true'], [role='textbox']")
+      : null;
+    if (!enabled || !isComposer(target) || !event.clipboardData) return;
+    if (event.clipboardData.files.length) return; // dosya/görsel: sitenin akışı (ağ kilidi ekteki metni denetler)
+    const pasted = event.clipboardData.getData("text/plain");
+    if (!pasted) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!document.execCommand("insertText", false, pasted) && (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement)) {
+      target.setRangeText(pasted, target.selectionStart, target.selectionEnd, "end");
+      target.dispatchEvent(new InputEvent("input", {bubbles: true, inputType: "insertFromPaste", data: pasted}));
+    }
+  }, true);
+
   window.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" || event.shiftKey || event.isComposing || !isComposer(event.target)) return;
     if (pendingSubmit) { event.preventDefault(); event.stopImmediatePropagation(); return; }

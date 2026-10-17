@@ -39,6 +39,8 @@ sekmeler yenilenmelidir.
 ## Sınırlar
 
 ChatGPT ve Claude resmî bir eklenti API'si sunmaz; gönderim düğmesi ve yanıt DOM'u değişebilir. Seçiciler erişilebilir
-etiketlere dayanır ama gerçek sitelerde sürüm değişikliklerinden sonra elle denenmelidir. Dosya ekleri ve görseller,
+etiketlere dayanır ama gerçek sitelerde sürüm değişikliklerinden sonra elle denenmelidir. Yapıştırılan metin düz metin
+olarak mesaj alanına yazılır (Claude uzun yapıştırmayı ayrı bir eke çeviremez) ve normal kontrolden geçer; istekte onaysız
+ek metni (`attachments[].extracted_content`) varsa ağ kilidi isteği durdurur. Yüklenen dosyaların ve görsellerin içeriği,
 sesli giriş ve eklenti kapalıyken gönderim kapsanmaz. Eklentiyi tek koruma katmanı sayma; kurumsal kullanımda gateway
 (`/v1/gateway`) ile birlikte kullanılması önerilir.

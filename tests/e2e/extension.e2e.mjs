@@ -46,6 +46,7 @@ page.setDefaultTimeout(10_000);
 await page.goto(`${MOCK}/`);
 await page.waitForTimeout(1500); // eklentinin yüklenmesi
 
+const received = async () => (await fetch(`${MOCK}/__received`)).json();
 const TCKN = "10000000146";
 const PHONE = "0532 123 45 67";
 const EMAIL = "deniz.kaya@example.com";
@@ -160,6 +161,42 @@ await step("zengin metin alanı (contenteditable, Claude benzeri) da maskelenir"
   assert.ok(sent.includes("[TELEFON_1]") && !sent.includes(PHONE.slice(0, 4) + " 123"), sent);
 });
 
+await step("uzun yapıştırma eke dönüşmez, mesaj alanında kontrol edilir", async () => {
+  await page.goto(`${MOCK}/c/yapistir0001abc?editor=ce`);
+  await page.waitForTimeout(1500);
+  const before = (await received()).length;
+  const long = `Toplantı notları: ${"gündem maddeleri görüşüldü. ".repeat(10)}iletişim ${EMAIL}`;
+  await page.click("#ce-box");
+  await page.evaluate((text) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", text);
+    document.getElementById("ce-box").dispatchEvent(new ClipboardEvent("paste", {clipboardData: data, bubbles: true, cancelable: true}));
+  }, long);
+  assert.equal(await page.evaluate(() => window.__attachments.length), 0, "yapıştırma eke dönüştü");
+  assert.ok((await page.locator("#ce-box").innerText()).includes(EMAIL), "metin mesaj alanına yazılmadı");
+  await page.click("#ce-send");
+  await page.locator("#turkce-dlp-preview").getByRole("button", {name: "Maskele ve gönder"}).click();
+  await page.waitForFunction(() => window.__sent.length === 1);
+  const sent = (await received()).slice(before);
+  assert.equal(sent.length, 1);
+  assert.ok(sent[0].includes("[EPOSTA_1]") && !sent[0].includes(EMAIL), sent[0]);
+});
+
+await step("ağ kilidi: onaysız ek metni (attachments) engellenir", async () => {
+  const before = (await received()).length;
+  const result = await page.evaluate(async (email) => {
+    try {
+      await fetch("/api/completion", {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({prompt: "", attachments: [{extracted_content: `ek: ${email}`}]})});
+      return "geçti";
+    } catch (_error) {
+      return "engellendi";
+    }
+  }, EMAIL);
+  assert.equal(result, "engellendi");
+  assert.equal((await received()).length, before);
+});
+
 await step("popup yerel servisin durumunu gösterir", async () => {
   const extensionId = new URL(context.serviceWorkers()[0].url()).host;
   const popup = await context.newPage();
@@ -204,8 +241,6 @@ await step("'yapay zekânın gördüğünü göster' açıkken yer tutucular ger
   assert.equal(await page.locator("#masked-view").textContent(), `Görünüm: ${EMAIL}`);
   assert.equal(await page.locator("#turkce-dlp-masked-badge").count(), 0);
 });
-
-const received = async () => (await fetch(`${MOCK}/__received`)).json();
 
 await step("ağ kilidi: eklentiyi atlayan gönderim sunucuya ulaşmaz", async () => {
   await page.goto(`${MOCK}/c/kilit0001abc`);

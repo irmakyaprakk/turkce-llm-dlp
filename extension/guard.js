@@ -36,8 +36,17 @@
 
   // Gövdeden kullanıcı metni: form/JSON "prompt" alanı (ChatGPT oturumsuz, Claude) ya da
   // son kullanıcı mesajının content.parts alanı (ChatGPT oturumlu). Bulunamazsa null.
+  // Claude uzun yapıştırmayı eke çevirir (attachments[].extracted_content): ek metni de onaylı olmalı.
   function fromJson(data) {
     if (!data || typeof data !== "object") return null;
+    const attached = Array.isArray(data.attachments)
+      ? data.attachments.map((item) => item?.extracted_content).filter((text) => typeof text === "string" && text.trim())
+      : [];
+    const main = promptOf(data);
+    return attached.length ? [main ?? "", ...attached] : main;
+  }
+
+  function promptOf(data) {
     if (typeof data.prompt === "string") return data.prompt;
     if (Array.isArray(data.messages)) {
       const user = data.messages.filter((m) => m?.author?.role === "user" || m?.role === "user").at(-1);
@@ -87,8 +96,9 @@
     return new TypeError("Türkçe LLM DLP: Kontrol edilmemiş gönderim engellendi");
   }
 
-  // true: gönderilebilir
+  // true: gönderilebilir (birden çok metin varsa — mesaj + ek — hepsi onaylı olmalı)
   function allowText(text) {
+    if (Array.isArray(text)) return text.every(allowText);
     return !enabled || text == null || !normalize(text) || isApproved(text);
   }
 

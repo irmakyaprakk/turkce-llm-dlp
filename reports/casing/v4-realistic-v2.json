@@ -1,0 +1,285 @@
+{
+  "rows": 159,
+  "splits": [
+    "dev",
+    "test"
+  ],
+  "variants": {
+    "original": {
+      "hybrid": {
+        "metrics": {
+          "overall_precision": 0.9745762711864406,
+          "overall_recall": 0.9704641350210971,
+          "overall_f1": 0.9725158562367865,
+          "address_precision": 1.0,
+          "address_recall": 1.0,
+          "address_f1": 1.0,
+          "location_precision": 1.0,
+          "location_recall": 1.0,
+          "location_f1": 1.0,
+          "org_precision": 0.9375,
+          "org_recall": 0.9375,
+          "org_f1": 0.9375,
+          "person_precision": 0.978494623655914,
+          "person_recall": 0.9680851063829787,
+          "person_f1": 0.9732620320855615
+        },
+        "token_coverage": {
+          "overall_coverage": 0.9941588785046729,
+          "address_coverage": 1.0,
+          "address_tokens": 495,
+          "location_coverage": 1.0,
+          "location_tokens": 43,
+          "org_coverage": 0.9753086419753086,
+          "org_tokens": 162,
+          "person_coverage": 0.9935897435897436,
+          "person_tokens": 156
+        }
+      },
+      "model_only": {
+        "metrics": {
+          "overall_precision": 0.9703389830508474,
+          "overall_recall": 0.9662447257383966,
+          "overall_f1": 0.9682875264270614,
+          "address_precision": 1.0,
+          "address_recall": 1.0,
+          "address_f1": 1.0,
+          "location_precision": 0.9736842105263158,
+          "location_recall": 0.9736842105263158,
+          "location_f1": 0.9736842105263158,
+          "org_precision": 0.9375,
+          "org_recall": 0.9375,
+          "org_f1": 0.9375,
+          "person_precision": 0.978494623655914,
+          "person_recall": 0.9680851063829787,
+          "person_f1": 0.9732620320855615
+        },
+        "token_coverage": {
+          "overall_coverage": 0.9929906542056075,
+          "address_coverage": 1.0,
+          "address_tokens": 495,
+          "location_coverage": 0.9767441860465116,
+          "location_tokens": 43,
+          "org_coverage": 0.9753086419753086,
+          "org_tokens": 162,
+          "person_coverage": 0.9935897435897436,
+          "person_tokens": 156
+        }
+      },
+      "rules_only": {
+        "metrics": {
+          "overall_precision": 1.0,
+          "overall_recall": 0.45147679324894513,
+          "overall_f1": 0.622093023255814,
+          "address_precision": 1.0,
+          "address_recall": 1.0,
+          "address_f1": 1.0,
+          "location_precision": 1.0,
+          "location_recall": 0.8421052631578947,
+          "location_f1": 0.9142857142857143,
+          "org_precision": 1.0,
+          "org_recall": 0.359375,
+          "org_f1": 0.5287356321839081,
+          "person_precision": 1.0,
+          "person_recall": 0.11702127659574468,
+          "person_f1": 0.2095238095238095
+        },
+        "token_coverage": {
+          "overall_coverage": 0.7593457943925234,
+          "address_coverage": 1.0,
+          "address_tokens": 495,
+          "location_coverage": 0.8604651162790697,
+          "location_tokens": 43,
+          "org_coverage": 0.6234567901234568,
+          "org_tokens": 162,
+          "person_coverage": 0.10897435897435898,
+          "person_tokens": 156
+        }
+      }
+    },
+    "lower": {
+      "hybrid": {
+        "metrics": {
+          "overall_precision": 0.9256198347107438,
+          "overall_recall": 0.9451476793248945,
+          "overall_f1": 0.9352818371607516,
+          "address_precision": 1.0,
+          "address_recall": 1.0,
+          "address_f1": 1.0,
+          "location_precision": 0.9047619047619048,
+          "location_recall": 1.0,
+          "location_f1": 0.9500000000000001,
+          "org_precision": 0.875,
+          "org_recall": 0.875,
+          "org_f1": 0.875,
+          "person_precision": 0.9368421052631579,
+          "person_recall": 0.9468085106382979,
+          "person_f1": 0.9417989417989417
+        },
+        "token_coverage": {
+          "overall_coverage": 0.991822429906542,
+          "address_coverage": 1.0,
+          "address_tokens": 495,
+          "location_coverage": 1.0,
+          "location_tokens": 43,
+          "org_coverage": 0.9691358024691358,
+          "org_tokens": 162,
+          "person_coverage": 0.9871794871794872,
+          "person_tokens": 156
+        }
+      },
+      "model_only": {
+        "metrics": {
+          "overall_precision": 0.9214876033057852,
+          "overall_recall": 0.9409282700421941,
+          "overall_f1": 0.931106471816284,
+          "address_precision": 1.0,
+          "address_recall": 1.0,
+          "address_f1": 1.0,
+          "location_precision": 0.8809523809523809,
+          "location_recall": 0.9736842105263158,
+          "location_f1": 0.925,
+          "org_precision": 0.875,
+          "org_recall": 0.875,
+          "org_f1": 0.875,
+          "person_precision": 0.9368421052631579,
+          "person_recall": 0.9468085106382979,
+          "person_f1": 0.9417989417989417
+        },
+        "token_coverage": {
+          "overall_coverage": 0.9906542056074766,
+          "address_coverage": 1.0,
+          "address_tokens": 495,
+          "location_coverage": 0.9767441860465116,
+          "location_tokens": 43,
+          "org_coverage": 0.9691358024691358,
+          "org_tokens": 162,
+          "person_coverage": 0.9871794871794872,
+          "person_tokens": 156
+        }
+      },
+      "rules_only": {
+        "metrics": {
+          "overall_precision": 0.79,
+          "overall_recall": 0.3333333333333333,
+          "overall_f1": 0.4688427299703264,
+          "address_precision": 0.8780487804878049,
+          "address_recall": 0.8780487804878049,
+          "address_f1": 0.8780487804878049,
+          "location_precision": 0.7105263157894737,
+          "location_recall": 0.7105263157894737,
+          "location_f1": 0.7105263157894737,
+          "org_precision": 0.8181818181818182,
+          "org_recall": 0.140625,
+          "org_f1": 0.24000000000000002,
+          "person_precision": 0.7,
+          "person_recall": 0.07446808510638298,
+          "person_f1": 0.13461538461538458
+        },
+        "token_coverage": {
+          "overall_coverage": 0.669392523364486,
+          "address_coverage": 0.9939393939393939,
+          "address_tokens": 495,
+          "location_coverage": 0.6511627906976745,
+          "location_tokens": 43,
+          "org_coverage": 0.24074074074074073,
+          "org_tokens": 162,
+          "person_coverage": 0.08974358974358974,
+          "person_tokens": 156
+        }
+      }
+    },
+    "upper": {
+      "hybrid": {
+        "metrics": {
+          "overall_precision": 0.8034934497816594,
+          "overall_recall": 0.7763713080168776,
+          "overall_f1": 0.7896995708154506,
+          "address_precision": 0.926829268292683,
+          "address_recall": 0.926829268292683,
+          "address_f1": 0.926829268292683,
+          "location_precision": 0.7142857142857143,
+          "location_recall": 0.7894736842105263,
+          "location_f1": 0.7500000000000001,
+          "org_precision": 0.7872340425531915,
+          "org_recall": 0.578125,
+          "org_f1": 0.6666666666666667,
+          "person_precision": 0.797979797979798,
+          "person_recall": 0.8404255319148937,
+          "person_f1": 0.8186528497409327
+        },
+        "token_coverage": {
+          "overall_coverage": 0.9532710280373832,
+          "address_coverage": 1.0,
+          "address_tokens": 495,
+          "location_coverage": 0.9069767441860465,
+          "location_tokens": 43,
+          "org_coverage": 0.8518518518518519,
+          "org_tokens": 162,
+          "person_coverage": 0.9230769230769231,
+          "person_tokens": 156
+        }
+      },
+      "model_only": {
+        "metrics": {
+          "overall_precision": 0.7841409691629956,
+          "overall_recall": 0.7510548523206751,
+          "overall_f1": 0.7672413793103449,
+          "address_precision": 0.8292682926829268,
+          "address_recall": 0.8292682926829268,
+          "address_f1": 0.8292682926829268,
+          "location_precision": 0.7,
+          "location_recall": 0.7368421052631579,
+          "location_f1": 0.717948717948718,
+          "org_precision": 0.7872340425531915,
+          "org_recall": 0.578125,
+          "org_f1": 0.6666666666666667,
+          "person_precision": 0.797979797979798,
+          "person_recall": 0.8404255319148937,
+          "person_f1": 0.8186528497409327
+        },
+        "token_coverage": {
+          "overall_coverage": 0.9392523364485982,
+          "address_coverage": 0.98989898989899,
+          "address_tokens": 495,
+          "location_coverage": 0.7906976744186046,
+          "location_tokens": 43,
+          "org_coverage": 0.8395061728395061,
+          "org_tokens": 162,
+          "person_coverage": 0.9230769230769231,
+          "person_tokens": 156
+        }
+      },
+      "rules_only": {
+        "metrics": {
+          "overall_precision": 0.8958333333333334,
+          "overall_recall": 0.3628691983122363,
+          "overall_f1": 0.5165165165165165,
+          "address_precision": 0.975609756097561,
+          "address_recall": 0.975609756097561,
+          "address_f1": 0.975609756097561,
+          "location_precision": 0.8260869565217391,
+          "location_recall": 0.5,
+          "location_f1": 0.6229508196721311,
+          "org_precision": 0.782608695652174,
+          "org_recall": 0.28125,
+          "org_f1": 0.4137931034482759,
+          "person_precision": 1.0,
+          "person_recall": 0.09574468085106383,
+          "person_f1": 0.17475728155339806
+        },
+        "token_coverage": {
+          "overall_coverage": 0.7406542056074766,
+          "address_coverage": 1.0,
+          "address_tokens": 495,
+          "location_coverage": 0.5813953488372093,
+          "location_tokens": 43,
+          "org_coverage": 0.6234567901234568,
+          "org_tokens": 162,
+          "person_coverage": 0.08333333333333333,
+          "person_tokens": 156
+        }
+      }
+    }
+  }
+}

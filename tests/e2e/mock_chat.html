@@ -15,11 +15,20 @@
       document.getElementById("composer-form").outerHTML =
         '<div id="ce-box" contenteditable="true" role="textbox" aria-label="Mesaj yaz"></div>' +
         '<button id="ce-send" type="button" aria-label="Send message">Gönder</button>';
+      // Claude gibi: uzun yapıştırma mesaj alanına değil, ayrı bir eke gider
+      window.__attachments = [];
+      document.getElementById("ce-box").addEventListener("paste", (event) => {
+        const pasted = event.clipboardData.getData("text/plain");
+        if (pasted.length < 200) return;
+        event.preventDefault();
+        window.__attachments.push(pasted);
+      });
       document.getElementById("ce-send").addEventListener("click", async () => {
         const box = document.getElementById("ce-box");
         const text = box.innerText;
+        const attachments = window.__attachments.splice(0).map((extracted_content) => ({extracted_content}));
         try {
-          await post("/api/completion", JSON.stringify({prompt: text}), "application/json");
+          await post("/api/completion", JSON.stringify({prompt: text, attachments}), "application/json");
         } catch (_error) {
           return;
         }
