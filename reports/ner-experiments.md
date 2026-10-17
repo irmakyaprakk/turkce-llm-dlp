@@ -330,3 +330,9 @@ Sızıntı önlemleri: geliştirme partilerinde (realistic_batch1-3) geçen adla
 ## Not: mühürlü dosya adı (17 Ekim 2026)
 
 Mühürlü final testteki yapay zekâ destekli parti `sealed_asistan.txt` adından `data/ner/manual/sealed/sealed_proje.txt` adına geçti. Kaynağı değişmedi: **yapay zekâ destekli üretildi; Irmak Yaprak gözden geçirdi ve etiketleri onayladı.** Dosyanın ilk yorum satırında "proje içi" yazar; mühürlü dosyanın içeriği okunmadığı ve değiştirilmediği için bu satır olduğu gibi bırakıldı, doğru kaynak bu rapordadır. Yalnız dosya adı ve ilk yorum satırı değişti; cümleler ve etiketler aynıdır. Bu nedenle dosyanın kaynak SHA-256 değeri ve sonuç dosyalarındaki parti adı, bu tarihten önceki raporlardakinden farklıdır; önceki sayılar geçerliliğini korur.
+
+## Bağlamlı TC kuralı (17 Ekim 2026 — sonradan/post-hoc, gerçek kullanımda görüldü)
+
+Gerçek kullanımda "selam ben atilla tc 11028365789" mesajındaki numara maskelenmedi: kontrol haneleri tutmadığı için TC sayılmıyordu. Yanlış yazılmış ya da uydurulmuş bir TC de kimliği büyük ölçüde ele verdiğinden, kontrol haneleri tutmayan 11 haneli sayı **hemen önünde TC ipucu varsa** ("tc", "t.c.", "tckn", "tcm", "kimlik no", "TC kimlik numaram") yine TC olarak maskelenir. Bağlamsız 11 haneli sayılar eskisi gibi kontrol hanesi ister; "sipariş no", "fatura" gibi bağlamlar etkilenmez.
+
+Doğrulama: 37.056 satırlık UCI ürün yorumlarında yeni kural 0 eşleşme üretti; kaçınma ölçümü (`evaluate_bypass.py`) bağlamsız sayılarla çalıştığı için değişmedi. Gerçek ChatGPT'de (oturumsuz, istekler iptal edildi) uydurma geçersiz bir numarayla ağa yalnız `[TCKN_1]` gitti. Mühürlü setlere bakılmadı.

@@ -161,6 +161,18 @@ def plausible_phone(match: re.Match[str], view: str) -> bool:
     return parenthesized or bool(PHONE_CONTEXT.search(before)) or bool(PHONE_CONTEXT.match(after.lstrip(" ,.")))
 
 
+# Kontrol haneleri tutmayan 11 haneli sayı, hemen önünde TC ipucu varsa yine TC sayılır: yanlış yazılmış ya da
+# uydurulmuş bir TC de kimliği büyük ölçüde ele verir ("tc 11028365789"). Bağlamsız 11 hane checksum ister.
+TCKN_CONTEXT = re.compile(
+    r"(?i)(?:\bt\.?\s?c\.?|\btckn|\btcm|\bkimlik)(?:\s*(?:kimlik))?(?:\s*(?:no|numaras[ıi]|numaram|nom))?"
+    r"(?:\s*(?:[:=\-]|ise|şu|su))?\s*$"
+)
+
+
+def tckn_context_before(view: str, start: int) -> bool:
+    return bool(TCKN_CONTEXT.search(view[max(0, start - 30) : start]))
+
+
 PASSWORD_ASSIGNMENT = re.compile(
     r"(?i)\b(?:password|passwd|pwd)\b\s*[:=]\s*(?:\"(?P<double>[^\"\r\n]{1,512})\"|"
     r"'(?P<single>[^'\r\n]{1,512})'|(?P<bare>[^\s,;]{1,512}))"
@@ -184,7 +196,9 @@ def detect(text: str, *, normalize: bool = True) -> list[Detection]:
             token = match.group()
             if kind == "TCKN":
                 canonical = re.sub(r"\D", "", token)
-                if len(canonical) != 11 or not valid_tckn(canonical):
+                if len(canonical) != 11:
+                    continue
+                if not valid_tckn(canonical) and not tckn_context_before(view, match.start()):
                     continue
             elif kind == "IBAN" and not valid_iban(token):
                 continue

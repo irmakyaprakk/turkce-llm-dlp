@@ -688,3 +688,18 @@ def test_model_span_drops_apostrophe_suffix_so_same_person_gets_one_placeholder(
     assert [d.value for d in found] == ["Ayşe Demir", "Ayşe Demir"]
     masked, _ = MaskingSession().mask(text, found)
     assert masked == "<PERSON_1>'e söyle, <PERSON_1>'in dosyası hazır"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("selam ben atilla tc 11028365789", True),  # kontrol haneleri tutmuyor ama TC ipucu var
+        ("T.C. Kimlik No: 11028365789", True),
+        ("tckn=11028365789", True),
+        ("sipariş no 11028365789", False),
+        ("11028365789 numaralı fatura", False),
+        ("etc 11028365789", False),
+    ],
+)
+def test_tckn_with_context_is_masked_even_if_checksum_fails(text, expected):
+    assert any(d.type == "TCKN" for d in detect(text)) is expected
