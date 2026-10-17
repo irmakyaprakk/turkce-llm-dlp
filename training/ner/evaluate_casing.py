@@ -60,6 +60,7 @@ def main() -> None:
     ap.add_argument("--model-dir", required=True)
     ap.add_argument("--data-dir", type=Path, required=True)
     ap.add_argument("--splits", nargs="+", default=["dev", "test"])
+    ap.add_argument("--batch", nargs="*", default=[], help="yalnız bu partiler (ör. realistic_batch3)")
     ap.add_argument("--output-json", type=Path)
     ap.add_argument("--show-errors", choices=sorted(VARIANTS), nargs="*", default=[])
     args = ap.parse_args()
@@ -67,6 +68,8 @@ def main() -> None:
         sys.exit("Mühürlü setler bu betikle ölçülmez.")
 
     rows = [row for split in args.splits for row in read_jsonl(args.data_dir / f"{split}.jsonl")]
+    if args.batch:
+        rows = [row for row in rows if row.get("batch") in args.batch]
     model = HuggingFaceNERRecognizer.from_local_model(args.model_dir, inference_timeout_seconds=30)
     rules = [RuleEntityRecognizer(), LocationGazetteer(), FacilityRecognizer()]
     pipelines = {
@@ -74,7 +77,7 @@ def main() -> None:
         "model_only": DetectionPipeline([model]),
         "rules_only": DetectionPipeline(rules),
     }
-    result: dict = {"rows": len(rows), "splits": args.splits, "variants": {}}
+    result: dict = {"rows": len(rows), "splits": args.splits, "batches": args.batch or "all", "variants": {}}
     for name, transform in VARIANTS.items():
         variant_rows = [variant_row(row, transform) for row in rows]
         gold = [row["ner_tags"] for row in variant_rows]

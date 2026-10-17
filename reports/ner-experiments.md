@@ -275,3 +275,27 @@ ChatGPT denemesinde tamamı küçük harfle yazılmış bir tanıtım mesajı ("
 - **İkamet bağlamı:** Sözcük anlamı da olan yer adları ("Bucak", "Fatih") küçük harfle, bitişik bulunma/ayrılma ekiyle ve ardından ikamet/okul fiiliyle ("bucakta okuyorum") yer adı sayılır; "bahçede oturuyorum", "kalede oturuyorum" gibi mekân kullanımları elenir. Bitişik ekli yer adında ek artık span dışında kalır ("bucakta" → "bucak"): dış servise "[YER_1]ta" gider, yanıt ekranda "bucak'ta" diye doğru çekimle geri çevrilir.
 
 Doğrulama: 37.055 satırlık UCI ürün yorumlarında yeni kurallar 0 eşleşme üretti (ilk taslaktaki 15 "çağrı merkezi" yanlış alarmı baş sözcük listesi daraltılarak giderildi). Geliştirme setinde (realistic-v2) hibrit F1 değişmedi (0,9725). Mühürlü setlere bakılmadı.
+
+## Yazım biçimi ölçümü ve günlük dil partisi (Sorun 2, adım 1 — 17 Ekim 2026)
+
+Üretim boru hattı (v4 seed 42 + kurallar + sözlük) `training/ner/evaluate_casing.py` ile aynı cümlelerin orijinal, küçük ve BÜYÜK harfli kopyalarında ölçüldü. Mühürlü setler kullanılmadı. Sonuçlar: `reports/casing/`.
+
+**realistic-v2 (batch1 + batch2, dev + test, 159 cümle)**
+
+| Yazım | Hibrit F1 | Yalnız model | Yalnız kural |
+|---|---|---|---|
+| Orijinal | 0,973 | 0,968 | 0,622 |
+| küçük | 0,935 | 0,931 | 0,469 |
+| BÜYÜK | 0,790 | 0,767 | 0,517 |
+
+**realistic_batch3 (68 cümle, dev + test)**
+
+| Yazım | Hibrit F1 | Adres | Yer | Kurum | Kişi |
+|---|---|---|---|---|---|
+| Orijinal | 0,851 | 0,667 | 0,899 | 0,743 | 0,907 |
+| küçük | 0,838 | 0,667 | 0,870 | 0,743 | 0,896 |
+| BÜYÜK | 0,681 | 0,667 | 0,697 | 0,667 | 0,680 |
+
+**Yazar notu.** batch3 proje içinde yazıldı ve Irmak Yaprak tarafından gözden geçirildi (17 Ekim 2026). augmented-v5 şablonları da aynı kaynaktan çıktığı için batch3 sonuçları **iyimser** sayılmalı ve batch1-2'den ayrı raporlanmalıdır (bağımsız yazar cümleleri ayrı bir partide tutulmalı). Sızıntı denetimi: augmented-v4 train/dev ile birebir çakışan cümle yok.
+
+**Hata türleri (batch3, orijinal yazım).** Sözcükler arası yanlış birleştirme ("ırmak bucakta" → YER, "kuzey fethiyede" → YER, "oğuz cumhuriyet mah. …" → ADRES); kurumun kişi + kurum diye bölünmesi ("mehmet akif" + "ersoy üniversitesinde", "süleyman" + "demirel üniversitesini"); "devlet hastanesine" gibi genel adların kurum sanılması; sözcük anlamı da olan adların kaçması ya da yanlış türe girmesi ("kale" → ORG, "kalede" → KİŞİ). Kurum alt birimi farkları ("ege üniversitesi tıp fakültesi"): gözden geçirmede kural korundu, küçük harfli alt birim kuruma dahil edilmez; modelin alt birimi katması bu partide hata sayılır.

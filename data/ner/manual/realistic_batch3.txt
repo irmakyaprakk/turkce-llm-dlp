@@ -1,0 +1,89 @@
+# Altın test seti — 3. parti. Kurallar: training/ner/ANNOTATION_RULES.md
+# Yazar grubu: proje içi (augmented-v5 şablonlarıyla aynı kaynak), 17 Ekim 2026. Gözden geçirildi: Irmak Yaprak.
+# Not: eğitim verisi (augmented-v5) şablonlarını da aynı yazar yazacağı için bu parti iyimser sonuç verebilir;
+# raporda ayrı (by_batch) gösterilir. Bağımsız yazar cümleleri ayrı bir partide tutulmalı.
+# Odak: yapay zekâya yazılan günlük dil — "selam ben …" tanıtımları, tamamı küçük harf, karışık/BÜYÜK harf,
+# bitişik ekler (kesme işaretsiz), yazım hataları, sözcük anlamı da olan adlar ve yer adları, zor negatifler.
+# Tüm ad, kurum ve adresler uydurmadır.
+# Alt birim kararı (gözden geçirmede onaylandı): tamamı küçük harfli metinde alt birim ("ege üniversitesi tıp
+# fakültesi", "odtü fizik bölümü") kurala göre dahil edilmez (küçük harfli genel ifade sayılır).
+
+# --- tanıtım: "selam ben …" ---
+tanitim	selam ben [[PER|ırmak]] [[LOC|bucakta]] yaşıyorum [[ORG|mehmet akif ersoy üniversitesinde]] okuyorum
+tanitim	merhaba ben [[PER|deniz arslan]] [[LOC|eskişehirde]] oturuyorum [[ORG|anadolu üniversitesinde]] son sınıfım
+tanitim	selam benim adım [[PER|umut]] [[LOC|bolu]] da yaşıyorum ama aslen [[LOC|düzce]] doğumluyum
+tanitim	slm ben [[PER|bahar ekinci]] [[ORG|hacettepe hastanesinde]] hemşireyim nöbet çizelgesi hazırlar mısın
+tanitim	merhaba ben [[PER|barış]] [[LOC|kaledeyim]] [[ORG|kale belediyesinde]] çalışıyorum
+tanitim	ben [[PER|su yılmazer]], [[ORG|ege üniversitesi]] tıp fakültesi öğrencisiyim, staj dilekçesi yazar mısın
+tanitim	selamm ben [[PER|kuzey]] [[LOC|fethiyede]] doğdum büyüdüm şimdi [[LOC|izmirde]] yaşıyorum
+tanitim	merhabalar ben [[PER|ayten korkmazer]] [[ORG|akdeniz bankası]] [[LOC|manavgat]] şubesinde gişe yetkilisiyim
+tanitim	ben [[PER|ekin]] soyadım [[PER|toprakçı]] [[ORG|dicle üniversitesinde]] yüksek lisans yapıyorum
+tanitim	selam ben [[PER|Irmak]] [[LOC|Bucakta]] yaşıyorum [[ORG|Mehmet akif ersoy üniversitesinde]] okuyorum
+tanitim	merhaba adım [[PER|Defne Kılıçer]] [[LOC|Kadıköy]]'de oturuyorum, [[ORG|Marmara Üniversitesi]]'nde okuyorum
+tanitim	selam ben [[PER|yağmur]] [[LOC|rizede]] doğdum [[ORG|recep tayyip erdoğan üniversitesi]] mezunuyum cv lazım
+tanitim	merhaba ben [[PER|pınar oğuzhan]] [[LOC|ordunun]] [[LOC|ünye]] ilçesinde öğretmenim
+tanitim	hey ben [[PER|toprak]] [[LOC|bodrumda]] bir otelde [[ORG|mavi koy otelinde]] resepsiyondayım
+
+# --- yapay zekâya istek ---
+istek	bana bir özgeçmiş yaz: adım [[PER|selin aydemir]], [[ORG|yıldız teknik üniversitesi]] bilgisayar mühendisliği mezunuyum, [[ORG|trendyolda]] stajyerdim
+istek	şu maili düzelt: sayın [[PER|kemal ateş]] bey, [[ORG|nilüfer belediyesi]] ile yaptığımız görüşmeyi özetliyorum
+istek	annem [[PER|gülten]] hanım için [[ORG|konya şehir hastanesi]] randevusunu nasıl alırım
+istek	kardeşim [[PER|emir]] [[ORG|atatürk anadolu lisesinde]] okuyor, ona bir dilekçe örneği yazar mısın
+istek	[[PER|hakan]] beye teşekkür maili yaz, [[ORG|demirtaş lojistik]] adına [[LOC|gebzedeki]] depoyu bize açtılar
+istek	müdürüm [[PER|nermin tunalı]] [[ORG|izmir il milli eğitim müdürlüğünde]] çalışıyor ona resmi bir yazı lazım
+istek	kiracım [[PER|oğuz]] [[ADRES|cumhuriyet mah. lale sk. no 14 d 3 serdivan]] adresinde oturuyor ihtarname yazar mısın
+istek	bu metni özetle lütfen: [[PER|leyla]] ile [[PER|caner]] [[LOC|trabzonda]] tanışmış, sonra [[LOC|ankaraya]] taşınmışlar
+istek	[[ORG|koç üniversitesine]] başvuru için niyet mektubu yaz, ben [[PER|alp]] [[LOC|maltepede]] yaşıyorum
+istek	hocam [[PER|serdar özkaya]] [[ORG|odtü]] fizik bölümünde, ona ders muafiyeti için e-posta yazar mısın
+istek	ödev: [[PER|nazım hikmet]] hakkında 2 sayfa yaz, [[LOC|selanikte]] doğduğunu da ekle
+
+# --- whatsapp tarzı, yazım hatalı ---
+whatsapp	[[PER|ırmak]] napıyon akşam [[LOC|burdura]] geliyomusun
+whatsapp	[[PER|denizz]] ben [[LOC|antalyadayım]] [[ORG|akdeniz ünide]] işim var 3 te çıkarım
+whatsapp	abi [[PER|umutla]] konuştum [[ORG|vakıfbanktan]] kredi çıkmış
+whatsapp	[[PER|bahar]] ablanın adresi [[ADRES|yeşilyurt mah 3214 sk no 9 bucak burdur]] kargoyu oraya at
+whatsapp	tmm [[PER|barışa]] söyledim [[LOC|ispartaya]] cuma gidiyoz
+whatsapp	[[PER|yaprak]] hanımın kızı [[ORG|süleyman demirel üniversitesini]] kazanmış
+whatsapp	[[LOC|kalede]] kahvaltı yapalım mı pazar [[PER|ekinle]] [[PER|kuzeyi]] de çağır
+whatsapp	[[PER|mehmetakif]] dayıyla [[LOC|bucaktan]] dönüyoz yoldayız
+whatsapp	[[PER|nurşen]] teyze devlet hastanesinde yatıyo ziyarete gidcez
+whatsapp	[[PER|selimcan]] [[ORG|turkcell]] mağazasına gitmiş hattı yenilemiş
+
+# --- karışık / BÜYÜK harf ---
+buyuk_harf	SELAM BEN [[PER|MEHMET YILDIRIMER]] [[LOC|İZMİRDE]] YAŞIYORUM [[ORG|EGE ÜNİVERSİTESİNDE]] OKUYORUM
+buyuk_harf	ACİL: [[PER|HATİCE SÖNMEZ]] [[ORG|ZİRAAT BANKASI]] [[LOC|ÇORUM]] ŞUBESİNDEN ARANDI
+buyuk_harf	[[ORG|AKŞEHİR BELEDİYESİNE]] DİLEKÇE YAZ, BENİM ADIM [[PER|RAMAZAN ÇİFTÇİOĞLU]]
+buyuk_harf	ADRESİM [[ADRES|ATATÜRK CAD. NO:45 D:2 BUCAK/BURDUR]] FATURAYI BURAYA KESİN
+karisik_harf	Merhaba ben [[PER|elif Taner]] [[LOC|Sakaryada]] oturuyorum [[ORG|sakarya Üniversitesi]] öğrencisiyim
+karisik_harf	selam Ben [[PER|Kerem]] [[LOC|bursada]] doğdum [[ORG|Uludağ üniversitesinde]] okuyorum
+karisik_harf	[[PER|Ayşe gül demirci]] hanım [[ORG|Halkbank]] [[LOC|kepez]] şubesinde müdür
+
+# --- sözcük anlamı da olan adlar (zor negatif + pozitif çifti) ---
+zor_negatif	ırmak taştı köprü kapandı bugün işe gidemiyorum
+zor_negatif	deniz kenarında yürüyüş yaptık hava çok güzeldi
+zor_negatif	umut etmek güzel ama plan da lazım
+zor_negatif	bahar gelince bahçeyi düzenleyeceğiz
+zor_negatif	barış görüşmeleri yine ertelenmiş haberlerde gördüm
+zor_negatif	toprak çok kuru sulamak lazım
+zor_negatif	yaprak dökümü başladı sonbahar geldi
+zor_negatif	su faturası bu ay çok geldi
+zor_negatif	kale maçı kazandı kaleci harikaydı
+zor_negatif	yağmur yağıyor şemsiye al
+zor_negatif	ekin biçme zamanı geldi köyde herkes tarlada
+zor_negatif	bucak bucak aradım anahtarı bulamadım
+zor_negatif	kuzey yönüne doğru 2 km yürüyün
+zor_negatif	gül fidanlarını budamak için hangi ay uygun
+zor_negatif	devlet hastanesine mi özel hastaneye mi gideyim
+zor_negatif	üniversitesinde okuduğu bölümü sevmemiş
+pozitif_cift	[[PER|ırmak]] taştı diye espri yaptı herkes güldü
+pozitif_cift	[[PER|deniz]] kenara çekti arabayı biz de indik
+pozitif_cift	bugün [[PER|umut]] gelmedi toplantıya
+pozitif_cift	[[PER|bahar]] gelince başlarız dedi müdür
+pozitif_cift	[[PER|barış]] ile görüştüm teklifi kabul etti
+
+# --- yer adı mı, sözcük mü ---
+yer	[[LOC|fatihte]] oturuyorum [[ORG|istanbul üniversitesine]] yürüyerek gidiyorum
+yer	[[LOC|kale]] ilçesine bağlı bir köydeyiz şebeke çekmiyor
+yer	[[LOC|merkezefendide]] ev arıyorum [[ORG|pamukkale üniversitesine]] yakın olsun
+yer	tatilde [[LOC|kaşa]] gittik sonra [[LOC|kalkana]] geçtik
+yer	[[LOC|bahçelievlerde]] oturan bir arkadaşım [[ORG|medipol hastanesinde]] çalışıyor
