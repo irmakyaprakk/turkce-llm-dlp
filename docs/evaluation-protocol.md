@@ -10,6 +10,8 @@ Amaç: raporlanan sayıların modelin gerçek genelleme başarısını gösterme
 | Eğitim-içi doğrulama | `augmented-*` (dev, ayrık kalıp aileleri) | Checkpoint seçimi (otomatik) |
 | **Geliştirme seti** | `data/ner/manual/realistic_batch*.txt` → `realistic-v2` (dev + test) | Hata analizi, son işlem ve kural kararları, model/veri seçimi |
 | **Mühürlü final test** | `data/ner/manual/sealed/*.txt` → `build_gold_set.py --sealed` | Yalnızca en sonda, seçilen yapılandırma için **bir kez** |
+| **Mühürlü test 2** | `data/ner/manual/sealed2/*.txt` (bağımsız insan yazarlar) | v3 ↔ v4 kararı; bir kez kullanıldı |
+| **Mühürlü test 3** | `data/ner/manual/sealed3/*.txt` (bağımsız insan yazarlar; `docs/sealed3-talimat.md`) | v4 ↔ v5 kararı; `prepare_sealed3.py dogrula` sonrası **bir kez** |
 
 Not: `realistic-v2` adındaki "test" bölümü geçmiş deneylerle uyum için korunur; ancak bu set üzerinde hata analizi yapıldığı ve son işlem kuralları buna bakılarak düzeltildiği için **raporda geliştirme seti olarak anılır**. Final iddialar yalnızca mühürlü testle yapılır.
 

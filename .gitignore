@@ -13,3 +13,4 @@ build/
 node_modules/
 # Arkadaşların ham metinleri: GitHub'a gitmez (mühürlü set kaynağı)
 /data/ner/manual/sealed2/kaynak/
+/data/ner/manual/sealed3/kaynak/
