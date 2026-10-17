@@ -31,3 +31,4 @@ Hedef: 8–12 yazardan toplam 50–100 mesaj. Bir yazarın payı %20'yi geçmesi
 
 - augmented-v5 verisi sealed3 toplanmadan önce donduruldu (SHA-256 train `7e550fe0…`); sealed3 cümleleri eğitim verisine giremez. `muhurle` adımı yine de çakışmayı denetler.
 - Karar kuralı ölçümden **önce** yazılır: "v5, sealed3 hibrit F1'de v4'ten iyiyse ve realistic-v2'de 0,01'den fazla gerilemiyorsa üretimde v5."
+  **Onay:** Irmak Yaprak, 17 Ekim 2026 — sealed3 toplanmadan ve ölçümden önce onaylandı. Bu kural ölçümden sonra değiştirilmez.
