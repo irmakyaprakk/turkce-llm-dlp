@@ -38,8 +38,8 @@ Servis yalnızca makinenin loopback arayüzünden erişilebilir; konteyner root 
 
 ## API
 
-- `GET /health`: canlılık kontrolü.
-- `POST /v1/detect`: hassas veri türü ve metin içi offset döndürür; ham eşleşen değerleri döndürmez.
+- `GET /health`: canlılık kontrolü ve model durumu (`ner`: `ok` / `unavailable` / `off`).
+- `POST /v1/detect`: hassas veri türü ve metin içi offset döndürür; ham eşleşen değerleri döndürmez. `ner` alanı bu istekte kişi/kurum/yer modelinin çalışıp çalışmadığını söyler.
 - `POST /v1/process`: istemi maskeler, demo yanıtı üretir ve yanıt placeholder'larını aynı istek kapsamındaki değerlerle geri eşler.
 - `POST /v1/gateway`: politika kararını uygular, yalnızca maskelenmiş istemi sağlayıcı arayüzüne verir ve yanıtı geri eşler. Şu anki sağlayıcı yerel demodur; gerçek bir LLM'e bağlanmaz.
 - `POST /v1/gateway/stream`: aynı politika ve maskeleme adımlarını uygulayıp SSE üzerinden yanıt parçalarını döndürür; parça sınırından bölünen placeholder'lar yanıt akarken geri eşlenir.
@@ -62,7 +62,7 @@ curl -s http://127.0.0.1:8000/v1/process \
 - TCKN checksum, Türk IBAN mod-97 ve 13-19 haneli kart adaylarında Luhn doğrulaması kullanılır.
 - Türkiye telefon numaraları (cep 5xx, sabit 2xx-4xx; +90 / 0090 / 0 öneki; boşluk, nokta, tire, parantez; kısmen gizlenmiş "05XX" biçimi) yakalanır. Öneksiz 10 haneli sayı yalnızca telefon biçiminde yazılmışsa ya da "tel/cep/whatsapp" bağlamındaysa telefon sayılır; "sipariş/fatura/takip no" bağlamı yanlış alarmı önler. Farklı yazılan aynı numara aynı placeholder'ı alır.
 - E-posta, bilinen GitHub/AWS/Slack/Stripe/Google/GitLab/npm/PyPI biçimleri, JWT ve PEM private key desenleri yakalanır. Secret benzeri atamalarda bağlam + Shannon entropisi, parola atamalarında anahtar adı kullanılır.
-- `DetectionPipeline` kural tabanlı tespiti optional NER tanıyıcılarıyla birleştirebilir. NER inference exception veya zaman aşımı verirse hassas metni loglamadan uyarı yazar ve deterministik kurallarla devam eder. Zaman aşımında ayrı model süreci sonlandırılır ve servis yeniden başlatılana kadar NER devre dışı kalır. Hatalı model offset'i veri bütünlüğü hatası sayılır; gateway upstream'e geçmez.
+- `DetectionPipeline` kural tabanlı tespiti optional NER tanıyıcılarıyla birleştirebilir. NER inference exception veya zaman aşımı verirse hassas metni loglamadan uyarı yazar ve deterministik kurallarla devam eder. Zaman aşımında ya da model süreci çökerse süreç sonlandırılır ve arka planda artan aralıklarla (5 sn, 15 sn, 1 dk, 5 dk) yeniden başlatılır; bu sırada istekler kurallarla işlenir, `/v1/detect` ve `/health` yanıtları `"ner": "unavailable"` bildirir ve eklenti önizlemeyi uyarıyla açar ("Ad ve adres tanıma şu an çalışmıyor"). Hatalı model offset'i veri bütünlüğü hatası sayılır; gateway upstream'e geçmez.
 - Aynı türdeki aynı özgün değer, tek istek içinde tutarlı placeholder alır.
 - Upstream yanıtını parça parça işlerken `MaskingSession.restore_chunks(...)` parçalar arasında bölünen placeholder'ları da geri eşler; tamponda yalnızca olası placeholder eki tutulur.
 - `config/policy.example.yml` örnek ayarını `TURKCE_DLP_POLICY` ortam değişkeniyle seçebilirsin. `mask` varsayılandır; `block` upstream çağrısını engeller; `allow` ilgili eşleşmeyi olduğu gibi upstream'e yollar. Bilinmeyen veri türleri daima maskelenir. Hatalı politika ayarıyla servis başlamaz.

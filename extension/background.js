@@ -103,7 +103,8 @@ async function handle(message, sender) {
     if (!response.ok) return {error: true, reason: "api_error"};
     const payload = await response.json();
     if (!Array.isArray(payload.detections)) return {error: true};
-    return {detections: payload.detections};
+    // ner: "unavailable" ise kişi/kurum/yer modeli bu istekte çalışmadı (içerik betiği kullanıcıyı uyarır)
+    return {detections: payload.detections, ner: typeof payload.ner === "string" ? payload.ner : "off"};
   }
 
   // Anonim denetim kaydı: site adı + karar + tür başına sayılar. Başarısızlık gönderimi etkilemez.
@@ -161,7 +162,10 @@ async function handle(message, sender) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== "turkce-dlp-health" || !sender.url?.startsWith(chrome.runtime.getURL(""))) return false;
   fetch(API_URL.replace("/v1/detect", "/health"), {cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(2000)})
-    .then((response) => sendResponse({ok: response.ok}), () => sendResponse({ok: false}));
+    .then(async (response) => {
+      const body = response.ok ? await response.json().catch(() => ({})) : {};
+      sendResponse({ok: response.ok, ner: body.ner});
+    }, () => sendResponse({ok: false}));
   return true;
 });
 

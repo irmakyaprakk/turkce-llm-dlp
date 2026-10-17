@@ -91,7 +91,7 @@ def test_placeholder_collision_and_stream_boundaries():
 
 def test_api_limits_and_does_not_return_detected_values():
     client = TestClient(app)
-    assert client.get("/health").json() == {"status": "ok"}
+    assert client.get("/health").json() == {"status": "ok", "ner": "off"}  # model yapılandırılmamış
     response = client.post("/v1/detect", json={"text": "TCKN 10000000146"})
     assert response.status_code == 200
     assert "10000000146" not in response.text
@@ -419,6 +419,101 @@ def test_ner_inference_timeout_terminates_worker_and_uses_rules(monkeypatch, tmp
     assert context.process.terminated is True
     assert recognizer._disabled is True
     assert "10000000146" not in caplog.text
+    recognizer.close()
+
+
+def test_ner_worker_restarts_after_timeout_and_recovers(monkeypatch, tmp_path):
+    import time as _time
+
+    class Connection:
+        def __init__(self, hang):
+            self.hang = hang
+            self.sent = None
+            self.ready_sent = False
+
+        def poll(self, _timeout):
+            if not self.ready_sent:
+                return True  # yükleme tamam
+            return not self.hang  # ilk süreç yanıt vermez, ikincisi verir
+
+        def recv(self):
+            if not self.ready_sent:
+                self.ready_sent = True
+                return ("ready", None)
+            return ("result", [{"entity_group": "PER", "start": 10, "end": 16, "score": 0.9}])
+
+        def send(self, text):
+            self.sent = text
+
+        def close(self):
+            pass
+
+    class Child:
+        def close(self):
+            pass
+
+    class Process:
+        def __init__(self, **_kwargs):
+            self.alive = True
+
+        def start(self):
+            pass
+
+        def is_alive(self):
+            return self.alive
+
+        def terminate(self):
+            self.alive = False
+
+        def kill(self):
+            self.alive = False
+
+        def join(self, timeout=None):
+            pass
+
+        def close(self):
+            pass
+
+    class Context:
+        spawned = 0
+
+        def Pipe(self, duplex=True):
+            Context.spawned += 1
+            return Connection(hang=Context.spawned == 1), Child()
+
+        def Process(self, **kwargs):
+            return Process(**kwargs)
+
+    monkeypatch.setattr("turkce_llm_dlp.ner.multiprocessing.get_context", lambda _method: Context())
+    recognizer = ProcessIsolatedHuggingFaceNERRecognizer(
+        str(tmp_path), startup_timeout_seconds=1, inference_timeout_seconds=0.01, restart_delays=(0.05,)
+    )
+    pipeline = DetectionPipeline([recognizer])
+    text = "selam ben atilla tc 10000000146"
+    detections, degraded = pipeline.detect_with_status(text)
+    assert degraded and [d.type for d in detections] == ["TCKN"] and not recognizer.available
+    for _ in range(100):
+        if recognizer.available:
+            break
+        _time.sleep(0.02)
+    assert recognizer.available and recognizer.restarts == 1  # model kalıcı olarak kapanmadı
+    detections, degraded = pipeline.detect_with_status(text)
+    assert not degraded and ("PERSON", "atilla") in [(d.type, d.value) for d in detections]
+    recognizer.close()
+
+
+def test_detect_reports_ner_status(monkeypatch):
+    from turkce_llm_dlp import api as api_module
+
+    def broken(_text):
+        raise RuntimeError("model çöktü")
+
+    client = TestClient(app)
+    monkeypatch.setattr(api_module, "detection_pipeline", DetectionPipeline([HuggingFaceNERRecognizer(broken)]))
+    body = client.post("/v1/detect", json={"text": "TCKN 10000000146"}).json()
+    assert body["ner"] == "unavailable" and body["detections"][0]["type"] == "TCKN"
+    monkeypatch.setattr(api_module, "detection_pipeline", DetectionPipeline([HuggingFaceNERRecognizer(lambda _t: [])]))
+    assert client.post("/v1/detect", json={"text": "merhaba"}).json()["ner"] == "ok"
 
 
 def test_training_jsonl_rejects_empty_sentences(tmp_path):

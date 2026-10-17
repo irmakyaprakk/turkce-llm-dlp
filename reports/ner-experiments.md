@@ -336,3 +336,13 @@ Mühürlü final testteki yapay zekâ destekli parti `sealed_asistan.txt` adınd
 Gerçek kullanımda "selam ben atilla tc 11028365789" mesajındaki numara maskelenmedi: kontrol haneleri tutmadığı için TC sayılmıyordu. Yanlış yazılmış ya da uydurulmuş bir TC de kimliği büyük ölçüde ele verdiğinden, kontrol haneleri tutmayan 11 haneli sayı **hemen önünde TC ipucu varsa** ("tc", "t.c.", "tckn", "tcm", "kimlik no", "TC kimlik numaram") yine TC olarak maskelenir. Bağlamsız 11 haneli sayılar eskisi gibi kontrol hanesi ister; "sipariş no", "fatura" gibi bağlamlar etkilenmez.
 
 Doğrulama: 37.056 satırlık UCI ürün yorumlarında yeni kural 0 eşleşme üretti; kaçınma ölçümü (`evaluate_bypass.py`) bağlamsız sayılarla çalıştığı için değişmedi. Gerçek ChatGPT'de (oturumsuz, istekler iptal edildi) uydurma geçersiz bir numarayla ağa yalnız `[TCKN_1]` gitti. Mühürlü setlere bakılmadı.
+
+## Model süreci dayanıklılığı (17 Ekim 2026 — gerçek kullanımda görüldü)
+
+Servis günlüğünde "NER tanıyıcısı başarısız" kaydı 6 kez geçiyordu: bilgisayar yoğunken tek bir mesaj 2 saniyelik çıkarım sınırını aşınca model süreci kapatılıyor ve **servis yeniden başlatılana kadar** kişi/kurum/yer tanıma sessizce devre dışı kalıyordu (yalnız kurallar çalışıyordu; kullanıcı fark etmiyordu). Düzeltme:
+
+- Zaman aşımı ya da çökme sonrası süreç arka planda artan aralıklarla (5 sn, 15 sn, 1 dk, 5 dk) yeniden başlatılır; gerçek modelde süreç zorla öldürüldüğünde ~8 saniyede geri geldi.
+- `/v1/detect` ve `/health` model durumunu bildirir (`ner`); model çalışmıyorsa eklenti, kişisel veri bulunmasa bile önizlemeyi "Ad ve adres tanıma şu an çalışmıyor" uyarısıyla açar ve gönderim kullanıcı onayına bağlanır; popup da durumu gösterir.
+- Gerçek ChatGPT doğrulamasında bulunan yan hata da giderildi: site, eklentinin tekrar gönderiminden hemen sonra ikinci bir `submit` tetikliyor ve aynı metin yeniden kontrol ediliyordu (yanlış "Kişisel veri bulunmadı" bandı; model kapalıyken önizleme döngüsü). Az önce onaylanan metin 5 saniye içinde yeniden kontrol edilmez.
+
+Model ve eşikler değişmedi; ölçüm sonuçları etkilenmez.

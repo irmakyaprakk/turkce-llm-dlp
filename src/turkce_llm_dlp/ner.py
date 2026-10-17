@@ -12,6 +12,7 @@ import math
 import multiprocessing
 import re
 import threading
+import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -231,7 +232,12 @@ def _ner_process_main(connection, model_dir: str, device: int) -> None:
 
 
 class ProcessIsolatedHuggingFaceNERRecognizer:
-    """Killable local model worker with bounded startup and inference waits."""
+    """Killable local model worker with bounded startup and inference waits.
+
+    Zaman aşımı ya da hata modeli kalıcı olarak kapatmaz: süreç sonlandırılır ve arka planda artan aralıklarla
+    (``restart_delays``) yeniden başlatılır. Bu arada istekler kurallarla işlenir ve ``available`` False döner;
+    API bunu yanıtında bildirir, eklenti kullanıcıyı uyarır.
+    """
 
     def __init__(
         self,
@@ -241,6 +247,7 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
         min_score: float = 0.0,
         startup_timeout_seconds: float = 60.0,
         inference_timeout_seconds: float = 2.0,
+        restart_delays: tuple[float, ...] = (5.0, 15.0, 60.0, 300.0),
     ):
         if not Path(model_dir).is_dir():
             raise FileNotFoundError("Yerel NER model klasörü bulunamadı.")
@@ -263,8 +270,54 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
         self._process = None
         self._connection = None
         self._disabled = False
+        self._closing = False
+        self._restart_delays = tuple(restart_delays) or (5.0,)
+        self._restart_thread: threading.Thread | None = None
+        self.restarts = 0
         self._start_worker()
         atexit.register(self.close)
+
+    @property
+    def available(self) -> bool:
+        return not self._disabled and not self._closing
+
+    def _fail(self) -> None:
+        """Süreci durdurur ve yeniden başlatmayı planlar (kilit altında çağrılır)."""
+        self._disabled = True
+        self._stop_worker()
+        self._schedule_restart()
+
+    def _schedule_restart(self) -> None:
+        if self._closing or (self._restart_thread is not None and self._restart_thread.is_alive()):
+            return
+        self._restart_thread = threading.Thread(target=self._restart_loop, name="ner-restart", daemon=True)
+        self._restart_thread.start()
+
+    def _restart_loop(self) -> None:
+        attempt = 0
+        while not self._closing:
+            delay = self._restart_delays[min(attempt, len(self._restart_delays) - 1)]
+            deadline = time.monotonic() + delay
+            while not self._closing and time.monotonic() < deadline:
+                time.sleep(min(0.05, max(0.0, deadline - time.monotonic())))
+            if self._closing:
+                return
+            try:
+                # Yükleme kilit dışında yapılır: bu sırada istekler kurallarla işlenmeye devam eder
+                process, connection = self._spawn_worker()
+            except BaseException:
+                attempt += 1
+                continue
+            with self._lock:
+                if self._closing:
+                    self._process, self._connection = process, connection
+                    self._stop_worker()
+                    return
+                self._process, self._connection = process, connection
+                self._disabled = False
+                self.restarts += 1
+            logger.warning("NER modeli yeniden başlatıldı.")
+            return
 
     def _stop_worker(self) -> None:
         connection, process = self._connection, self._process
@@ -284,14 +337,14 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
             if not process.is_alive() and hasattr(process, "close"):
                 process.close()
 
-    def _start_worker(self) -> None:
+    def _spawn_worker(self):
+        """Yeni model süreci başlatır ve hazır olmasını bekler; başarısızsa süreci kapatıp hata verir."""
         parent, child = self._context.Pipe(duplex=True)
         process = self._context.Process(
             target=_ner_process_main, args=(child, self.model_dir, self.device), daemon=True
         )
         try:
             process.start()
-            self._process, self._connection = process, parent
             child.close()
             if not parent.poll(self.startup_timeout_seconds):
                 raise TimeoutError("NER model yükleme zaman aşımı.")
@@ -299,42 +352,47 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
             if status != "ready":
                 raise RuntimeError("NER model yüklenemedi.")
         except BaseException:
+            for handle in (parent, child):
+                try:
+                    handle.close()
+                except OSError:
+                    pass
+            if process.is_alive():
+                process.terminate()
+            process.join(timeout=1.0)
+            if process.is_alive():
+                process.kill()
+                process.join(timeout=1.0)
+            raise
+        return process, parent
+
+    def _start_worker(self) -> None:
+        try:
+            self._process, self._connection = self._spawn_worker()
+        except BaseException:
             self._disabled = True
-            try:
-                parent.close()
-            except OSError:
-                pass
-            try:
-                child.close()
-            except OSError:
-                pass
-            self._stop_worker()
             raise
 
     def recognize(self, text: str) -> Iterable[EntitySpan]:
         if self._disabled:
-            raise RuntimeError("NER worker timeout veya yükleme hatası nedeniyle devre dışı.")
+            raise RuntimeError("NER worker yeniden başlatılıyor; bu istek kural tabanlı işlenecek.")
         if not self._lock.acquire(timeout=self.inference_timeout_seconds):
             raise TimeoutError("NER worker meşgul; bu istek kural tabanlı işlenecek.")
         try:
             if self._disabled or self._connection is None or self._process is None or not self._process.is_alive():
-                self._disabled = True
-                self._stop_worker()
+                self._fail()
                 raise RuntimeError("NER worker kullanılamıyor.")
             try:
                 self._connection.send(text)
                 if not self._connection.poll(self.inference_timeout_seconds):
-                    self._disabled = True
-                    self._stop_worker()
+                    self._fail()
                     raise TimeoutError("NER inference zaman aşımı.")
                 status, payload = self._connection.recv()
             except (EOFError, OSError) as exc:
-                self._disabled = True
-                self._stop_worker()
+                self._fail()
                 raise RuntimeError("NER worker yanıt vermedi.") from exc
             if status != "result":
-                self._disabled = True
-                self._stop_worker()
+                self._fail()
                 raise RuntimeError("NER inference hatası.")
             spans = []
             for prediction in payload:
@@ -353,6 +411,7 @@ class ProcessIsolatedHuggingFaceNERRecognizer:
             self._lock.release()
 
     def close(self) -> None:
+        self._closing = True
         if self._lock.acquire(timeout=self.inference_timeout_seconds):
             try:
                 self._disabled = True
@@ -622,6 +681,11 @@ class DetectionPipeline:
         self._failure_logged: set[int] = set()
 
     def detect(self, text: str) -> list[Detection]:
+        return self.detect_with_status(text)[0]
+
+    def detect_with_status(self, text: str) -> tuple[list[Detection], bool]:
+        """Tespitler ve bu istekte bir tanıyıcının başarısız olup olmadığı (True: yalnız kurallarla işlendi)."""
+        degraded = False
         rules = detect(text)
         selected = list(rules)
         candidates: list[Detection] = []
@@ -639,10 +703,12 @@ class DetectionPipeline:
                 # Project policy: a model runtime failure degrades to
                 # deterministic detectors. Never log the input or exception,
                 # which may contain request data.
+                degraded = True
                 if recognizer_index not in self._failure_logged:
                     logger.warning("NER tanıyıcısı başarısız; kural tabanlı tespit ile devam ediliyor.")
                     self._failure_logged.add(recognizer_index)
                 continue
+            self._failure_logged.discard(recognizer_index)  # düzelince bir sonraki arıza yine günlüğe yazılır
             for span in spans:
                 if not (0 <= span.start < span.end <= len(text)):
                     raise ValueError("NER tanıyıcısı metin sınırları dışında offset döndürdü.")
@@ -683,7 +749,7 @@ class DetectionPipeline:
         merged = merge_org_compounds(text, ner_items)
         if self.address_union:
             merged = merge_facility_into_address(text, merged)
-        return sorted([*rules, *_resolve_merged(text, merged, ner_items, rules)], key=lambda d: d.start)
+        return sorted([*rules, *_resolve_merged(text, merged, ner_items, rules)], key=lambda d: d.start), degraded
 
 
 def _overlaps(a: Detection, b: Detection) -> bool:

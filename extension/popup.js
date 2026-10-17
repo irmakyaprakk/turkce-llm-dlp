@@ -48,6 +48,11 @@ clearButton.addEventListener("click", () => {
 const service = document.getElementById("service");
 chrome.runtime.sendMessage({type: "turkce-dlp-health"}, (response) => {
   const up = Boolean(response?.ok);
-  service.textContent = up ? "Yerel servis: çalışıyor" : "Yerel servis: kapalı — mesajlar gönderilmez";
-  service.className = up ? "ok" : "down";
+  const nerDown = up && response.ner === "unavailable";
+  service.textContent = !up
+    ? "Yerel servis: kapalı — mesajlar gönderilmez"
+    : nerDown
+      ? "Yerel servis: çalışıyor, ad/kurum/yer modeli yeniden başlatılıyor — ad ve adresleri kontrol edin"
+      : "Yerel servis: çalışıyor";
+  service.className = !up ? "down" : nerDown ? "warn" : "ok";
 });

@@ -362,6 +362,46 @@ await step("ağ kilidi: about:blank iç çerçevenin fetch'i de kilitli", async 
   assert.equal((await received()).length, before, "iç çerçeve isteği sunucuya ulaştı");
 });
 
+await step("model çalışmıyorsa önizleme her zaman açılır ve kullanıcı uyarılır", async () => {
+  await page.goto(`${MOCK}/c/model0down01`);
+  await page.waitForTimeout(1500);
+  const worker = context.serviceWorkers()[0];
+  // Servis yanıtına "model yeniden başlatılıyor" durumu eklenir (gerçek arıza: inference zaman aşımı)
+  await worker.evaluate(() => {
+    globalThis.__realFetch = globalThis.fetch;
+    globalThis.fetch = async (url, init) => {
+      const response = await globalThis.__realFetch(url, init);
+      if (!/\/v1\/detect|\/health/.test(String(url))) return response;
+      const body = {...(await response.json()), ner: "unavailable"};
+      return new Response(JSON.stringify(body), {status: response.status, headers: {"Content-Type": "application/json"}});
+    };
+  });
+  const sentBefore = await page.evaluate(() => window.__sent.length);
+  await page.fill("#prompt-textarea", "yarın toplantı saat kaçta");
+  await page.press("#prompt-textarea", "Enter");
+  const panel = page.locator("#turkce-dlp-preview");
+  await panel.getByText("Ad ve adres tanıma şu an çalışmıyor").waitFor();
+  await panel.getByText(/modeli şu an çalışmıyor/).waitFor();
+  assert.equal(await page.evaluate(() => window.__sent.length), sentBefore, "uyarı onaylanmadan gönderildi");
+  // Gerçek ChatGPT'de görülen: site, eklentinin tekrar gönderiminden hemen sonra ikinci bir submit tetikler.
+  // Aynı metin yeniden kontrol edilirse önizleme döngüye girip mesaj hiç gitmiyordu.
+  await page.evaluate(() => {
+    const form = document.getElementById("composer-form");
+    form.addEventListener("submit", () => setTimeout(() => form.requestSubmit(), 0), {once: true});
+  });
+  await panel.getByRole("button", {name: "Yine de gönder"}).click();
+  await page.waitForFunction((n) => window.__sent.length >= n + 1, sentBefore);
+  await page.waitForTimeout(800);
+  assert.equal(await page.locator("#turkce-dlp-preview").count(), 0, "önizleme ikinci submit'te yeniden açıldı");
+  const extensionId = new URL(worker.url()).host;
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.locator("#service.warn").waitFor();
+  assert.match(await popup.locator("#service").textContent(), /yeniden başlatılıyor/);
+  await popup.close();
+  await worker.evaluate(() => { globalThis.fetch = globalThis.__realFetch; });
+});
+
 await step("servis kapalıysa gönderim durur ve neden açıkça söylenir", async () => {
   await page.goto(`${MOCK}/c/kapali0001abc`);
   await page.waitForTimeout(1500);

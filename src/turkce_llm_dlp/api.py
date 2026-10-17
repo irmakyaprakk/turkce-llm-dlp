@@ -103,6 +103,10 @@ def _rule_recognizers() -> list:
     return recognizers
 
 
+# Model yapılandırılmış ama açılışta yüklenemediyse durum "unavailable" bildirilir (kural modu sessiz kalmasın)
+MODEL_CONFIGURED = bool(os.environ.get("TURKCE_DLP_NER_MODEL_DIR", "").strip())
+
+
 def _configured_detector() -> DetectionPipeline:
     model_dir = os.environ.get("TURKCE_DLP_NER_MODEL_DIR", "").strip()
     if not model_dir:
@@ -159,6 +163,24 @@ gateway = Gateway(_configured_provider(), _configured_policy(), detector=detecti
 audit_log = _configured_audit()
 
 
+def _model_recognizers() -> list:
+    return [
+        r
+        for r in detection_pipeline.recognizers
+        if isinstance(r, HuggingFaceNERRecognizer | ProcessIsolatedHuggingFaceNERRecognizer)
+    ]
+
+
+def ner_status(degraded: bool = False) -> str:
+    """off: model yapılandırılmamış; ok: çalışıyor; unavailable: yüklenemedi ya da yeniden başlatılıyor."""
+    models = _model_recognizers()
+    if not models:
+        return "unavailable" if MODEL_CONFIGURED else "off"
+    if degraded or not all(getattr(model, "available", True) for model in models):
+        return "unavailable"
+    return "ok"
+
+
 def _admin_allowed(token: str | None) -> bool:
     # Panel ve özet yalnız yerel adreste dinlenir; kurumsal kurulumda TURKCE_DLP_ADMIN_TOKEN ile korunur.
     expected = os.environ.get("TURKCE_DLP_ADMIN_TOKEN", "")
@@ -211,20 +233,22 @@ async def validation_error_handler(_request, exc: RequestValidationError):
 def health() -> dict:
     # Provider mode is intentionally omitted: the configured gateway may send
     # masked prompts to an external service, so claiming local-only is unsafe.
-    return {"status": "ok"}
+    return {"status": "ok", "ner": ner_status()}
 
 
 @app.post("/v1/detect")
 def detect_route(request: TextRequest) -> dict:
     # Deliberately return only categories/offsets; never return matched values.
     # Kurum politikası (mask / block / allow) her tespite eklenir; eklenti "block" görünce gönderimi durdurur.
-    matches = detection_pipeline.detect(request.text)
+    # "ner": unavailable ise kişi/kurum/yer tanınmadan yalnız kurallarla işlendi; eklenti kullanıcıyı uyarır.
+    matches, degraded = detection_pipeline.detect_with_status(request.text)
     return {
         "detections": [
             {"type": d.type, "start": d.start, "end": d.end, "action": gateway.policy.action_for(d.type)}
             for d in matches
         ],
         "count": len(matches),
+        "ner": ner_status(degraded),
     }
 
 
@@ -269,10 +293,8 @@ def audit_summary_route(days: int = Query(30, ge=1, le=365), x_admin_token: str 
         "default_action": gateway.policy.default_action,
         "rules": {kind: gateway.policy.action_for(kind) for kind in sorted(ENTITY_TYPES)},
     }
-    summary["model"] = any(
-        isinstance(r, HuggingFaceNERRecognizer | ProcessIsolatedHuggingFaceNERRecognizer)
-        for r in detection_pipeline.recognizers
-    )
+    summary["model"] = bool(_model_recognizers())
+    summary["ner"] = ner_status()
     return summary
 
 

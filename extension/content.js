@@ -45,8 +45,15 @@
     document.dispatchEvent(new CustomEvent("turkce-dlp-config", {detail: JSON.stringify({enabled})}));
   }
 
+  // Az önce onaylanıp gönderilen metin: site gönderimi bir sonraki tikte yeniden tetiklerse (ChatGPT'de ikinci
+  // "submit") aynı metin ikinci kez kontrol edilmez; aksi hâlde önizleme döngüye girer. Ağ kilidi de aynı metni onaylar.
+  const REPLAY_GRACE_MS = 5000;
+  let lastSent = {text: "", until: 0};
+  const sameText = (a, b) => a.replace(/\s+/g, " ").trim() === b.replace(/\s+/g, " ").trim();
+
   // Onay hem sayfadaki kilide hem arka plandaki tespit ağına (webRequest) bildirilir.
   function approveForNetwork(text) {
+    lastSent = {text, until: Date.now() + REPLAY_GRACE_MS};
     document.dispatchEvent(new CustomEvent("turkce-dlp-approve", {detail: JSON.stringify(text)}));
     chrome.runtime.sendMessage({type: "turkce-dlp-approve", text}).catch(() => {});
   }
@@ -227,6 +234,7 @@
     .value { word-break: break-word; }
     .ph { display: block; color: #6b7690; font-size: 12px; }
     li.blocked .type { color: #9b1c1c; }
+    .warn { margin: 0 0 14px; padding: 10px 12px; border-radius: 8px; background: #fef3c7; color: #78350f; }
     .actions { display: flex; justify-content: flex-end; gap: 8px; }
     button { font: inherit; border-radius: 8px; padding: 8px 14px; cursor: pointer; border: 1px solid #c9d1df; background: #fff; color: #172033; }
     button.primary { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
@@ -237,7 +245,8 @@
     }`;
 
   // Dönüş: maskelenecek tespitlerin listesi ya da null (vazgeçildi)
-  function confirmDetections(text, items, blocked) {
+  // nerDown: kişi/kurum/yer modeli bu istekte çalışmadı; yalnız kurallar uygulandı (kullanıcı uyarılır)
+  function confirmDetections(text, items, blocked, nerDown = false) {
     return new Promise((resolve) => {
       const host = document.createElement("div");
       host.id = "turkce-dlp-preview";
@@ -258,6 +267,7 @@
       const toCodePoints = [...text];
       const valueOf = (item) => toCodePoints.slice(item.start, item.end).join("");
       const checks = [];
+      let warn = null;
 
       if (blocked.length) {
         title.textContent = "Bu mesaj gönderilemez";
@@ -275,8 +285,16 @@
           list.append(row);
         }
       } else {
-        title.textContent = "Kişisel veri bulundu";
-        info.textContent = "İşaretli bilgiler gönderilmeden önce yer tutucuyla değiştirilecek; yanıt geldiğinde ekranda geri yerleştirilir. Kişisel veri olmayanların işaretini kaldırabilirsiniz.";
+        title.textContent = items.length ? "Kişisel veri bulundu" : "Ad ve adres tanıma şu an çalışmıyor";
+        info.textContent = items.length
+          ? "İşaretli bilgiler gönderilmeden önce yer tutucuyla değiştirilecek; yanıt geldiğinde ekranda geri yerleştirilir. Kişisel veri olmayanların işaretini kaldırabilirsiniz."
+          : "Kurallar (TC, telefon, IBAN, e-posta…) bir şey bulmadı.";
+        if (nerDown) {
+          warn = document.createElement("p");
+          warn.className = "warn";
+          warn.setAttribute("role", "alert");
+          warn.textContent = "Kişi, kurum ve yer tanıma modeli şu an çalışmıyor (yeniden başlatılıyor). Ad, kurum ve adresler maskelenmeyebilir; mesajı kendiniz kontrol edin.";
+        }
         for (const item of items) {
           const row = document.createElement("li");
           const box = document.createElement("input");
@@ -308,7 +326,7 @@
       if (!blocked.length) {
         confirm = document.createElement("button");
         confirm.className = "primary";
-        confirm.textContent = "Maskele ve gönder";
+        confirm.textContent = items.length ? "Maskele ve gönder" : "Yine de gönder";
         confirm.addEventListener("click", () => close(checks.filter(([box]) => box.checked).map(([, item]) => item)));
         actions.append(confirm);
       }
@@ -317,7 +335,10 @@
         else if (event.key === "Enter" && confirm && !event.shiftKey) { event.preventDefault(); event.stopImmediatePropagation(); confirm.click(); }
       };
       document.addEventListener("keydown", onKey, true);
-      panel.append(title, info, list, actions);
+      panel.append(title, info);
+      if (warn) panel.append(warn);
+      if (items.length || blocked.length) panel.append(list);
+      panel.append(actions);
       backdrop.append(panel);
       root.append(style, backdrop);
       document.documentElement.appendChild(host);
@@ -379,6 +400,7 @@
     if (!enabled || replayingSubmit || !composer) return;
     const text = readComposer(composer);
     if (!text || !text.trim()) return;
+    if (Date.now() < lastSent.until && sameText(text, lastSent.text)) return; // aynı gönderimin tekrarı
     event.preventDefault();
     event.stopImmediatePropagation();
     if (pendingSubmit) return; // kontrol sürüyor: ikinci gönderim yolu (tık, submit) da durdurulur
@@ -397,14 +419,15 @@
         await confirmDetections(text, selected, blocked);
         return;
       }
-      if (selected.length && preview) {
-        selected = await confirmDetections(text, selected, []);
+      const nerDown = payload.ner === "unavailable";
+      if ((selected.length && preview) || nerDown) {
+        selected = await confirmDetections(text, selected, [], nerDown);
         if (selected === null) {
           audit("cancelled", candidates);
           return; // kullanıcı vazgeçti; mesaj alanı olduğu gibi kalır
         }
       }
-      if (!selected.length) {
+      if (!selected.length && !nerDown) {
         showError(candidates.length
           ? "Türkçe LLM DLP: İşaretli bilgi kalmadı, mesaj olduğu gibi gönderildi."
           : "Türkçe LLM DLP: Kişisel veri bulunmadı, mesaj olduğu gibi gönderildi.", "info");
